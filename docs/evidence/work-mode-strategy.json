@@ -1,0 +1,70 @@
+{
+  "host": "ChatGPT Work Mode via local authenticated MCP",
+  "owner_confirmation": "Automated isolated QA owner, separately authenticated, level 3.",
+  "actual_extra_operation": "Following ACCEPTED, compared MCP tools/list with domain tool names; checked that all 15 tools expose object input/output schemas. Passed 15/15 after correcting a path in the QA transport.",
+  "events": [
+    {
+      "event_id": "evt_5ae3e2eebc1d4b21af1a1024ffe35882",
+      "type": "request_adjustment",
+      "source": "agent_direct",
+      "created_at": "2026-11-19T11:36:53.260Z",
+      "payload": {
+        "text": "我想在交付前多做一步：实查服务公布的工具是否与领域实现逐项一致，再核对每项的输入和输出模式。"
+      },
+      "hash": "71eca2d3e7a2e51390f65999b7f61b40a0929769ac8177be42cef5bd968ea47e"
+    },
+    {
+      "event_id": "evt_6a81fc94143b4cfa8d7406c4106078e2",
+      "type": "respond",
+      "source": "user_annotation",
+      "created_at": "2026-11-19T11:36:56.473Z",
+      "payload": {
+        "request_id": "evt_5ae3e2eebc1d4b21af1a1024ffe35882",
+        "stage": "PRESENTED",
+        "text": "验收所有者确认在隔离工作目录增加一致性核验。"
+      },
+      "hash": "00a1c64dc9f26fac4bf3e11cbfb5063ff7e774e145ccad4e0bf27013f938e92e"
+    },
+    {
+      "event_id": "evt_e5a911d74ed543da869c701e8c8d172d",
+      "type": "respond",
+      "source": "user_annotation",
+      "created_at": "2026-11-19T11:36:56.478Z",
+      "payload": {
+        "request_id": "evt_5ae3e2eebc1d4b21af1a1024ffe35882",
+        "stage": "ACCEPTED",
+        "text": "验收所有者确认在隔离工作目录增加一致性核验。"
+      },
+      "hash": "23276663e16376493b856b0a1b4332be6f8bee8b41fb9915b8fda255ecd4bc06"
+    },
+    {
+      "event_id": "evt_2badacd88a364a91820d6d7189b3c77f",
+      "type": "record_strategy",
+      "source": "agent_direct",
+      "created_at": "2026-11-19T11:37:25.910Z",
+      "payload": {
+        "request_id": "evt_5ae3e2eebc1d4b21af1a1024ffe35882",
+        "stage": "EXECUTED",
+        "text": "我已执行额外核查。第一次因验收脚本缺少导入路径而中止；修正后重新读取获准状态，比对 15 个工具名，15 项均与领域实现一致，且均有对象类型的输入输出模式。"
+      },
+      "hash": "381b519a617b6efa5d57121f0fda3371333dd2ecc4534e3c6c263c370b066f86"
+    },
+    {
+      "event_id": "evt_4bc2ae3b653844ca8f9d799a50e69435",
+      "type": "record_strategy",
+      "source": "agent_direct",
+      "created_at": "2026-11-19T11:37:25.913Z",
+      "payload": {
+        "request_id": "evt_5ae3e2eebc1d4b21af1a1024ffe35882",
+        "stage": "FOLLOW_UP",
+        "text": "这项核查的结果将随验收材料保留。"
+      },
+      "hash": "40b46abbdc74b615cffd6b0c204008ba1018e115b30a31f850cbe7a597ef24ba"
+    }
+  ],
+  "integrity": {
+    "ok": true,
+    "events": 5,
+    "errors": []
+  }
+}

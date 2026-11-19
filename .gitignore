@@ -1,0 +1,17 @@
+.codex/
+.work/
+dist/
+__pycache__/
+*.py[cod]
+.venv/
+.DS_Store
+*.sqlite3*
+*.db
+.env
+*.token
+.playwright/
+test-results/
+generated_images/
+dev-data/
+runtime/
+.sls-runtime-*/

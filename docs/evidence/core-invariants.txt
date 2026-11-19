@@ -1,0 +1,11 @@
+test_damaged_managed_backup_is_rejected_before_live_state_changes (packages.core.test_invariants.DomainInvariants.test_damaged_managed_backup_is_rejected_before_live_state_changes) ... ok
+test_interrupted_postcommit_erasure_finishes_on_reopen (packages.core.test_invariants.DomainInvariants.test_interrupted_postcommit_erasure_finishes_on_reopen) ... ok
+test_old_delete_all_retry_preserves_new_data (packages.core.test_invariants.DomainInvariants.test_old_delete_all_retry_preserves_new_data) ... ok
+test_partial_agreement_names_adopted_part_and_revisions_require_new_consent (packages.core.test_invariants.DomainInvariants.test_partial_agreement_names_adopted_part_and_revisions_require_new_consent) ... ok
+test_restore_does_not_resurrect_revoked_grant (packages.core.test_invariants.DomainInvariants.test_restore_does_not_resurrect_revoked_grant) ... ok
+test_rotated_session_deletion_purges_cross_session_dependents_only (packages.core.test_invariants.DomainInvariants.test_rotated_session_deletion_purges_cross_session_dependents_only) ... ok
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.062s
+
+OK

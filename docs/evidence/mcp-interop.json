@@ -1,0 +1,30 @@
+{
+  "client_verification": {
+    "result": "PASS",
+    "client": "official Python SDK",
+    "protocol": "2025-11-25",
+    "tools": 15,
+    "event_id": "evt_f826bda060f0464d869f6fb820b9db46",
+    "sdk_version": "1.29.0"
+  },
+  "native_codex_attempt": {
+    "checked_at": "2026-11-19T11:30:37.634488+00:00",
+    "codex_version": "codex-cli 0.167.0-alpha.4",
+    "transport": "stdio",
+    "exit_code": 1,
+    "tool_events": [],
+    "result": "NOT_RUN",
+    "instance_id": "ins_6f6476fcdf2249a884649752ff2d957c",
+    "event_id": null,
+    "reason": "Native Codex application server exited before model startup: Read-only file system (os error 30). Retried with writable sqlite_home and log_dir; same result.",
+    "reproduction": "python packages/agent-example/verify_codex.py",
+    "credential_exposure": "none"
+  },
+  "contract_verification": {
+    "dialect": "JSON Schema Draft 2020-12",
+    "validator": "jsonschema 4.26.0",
+    "tools_checked": 15,
+    "scope": "Validated every advertised input and output schema and one real domain call result per tool in an isolated database",
+    "result": "PASS"
+  }
+}

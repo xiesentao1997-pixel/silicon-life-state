@@ -1,0 +1,6 @@
+# Copy this table to your own Codex configuration. Set the two environment
+# variables in the parent shell before starting the host.
+[mcp_servers.silicon_life_state]
+command = "python"
+args = ["C:/SiliconLifeState/packages/mcp-server/stdio.py"]
+env_vars = ["SILICON_AGENT_TOKEN", "SILICON_MCP_URL"]

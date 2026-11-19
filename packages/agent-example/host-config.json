@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "silicon-life-state": {
+      "command": "python",
+      "args": ["C:/SiliconLifeState/packages/mcp-server/stdio.py"],
+      "env": {
+        "SILICON_MCP_URL": "http://127.0.0.1:47831/mcp",
+        "SILICON_AGENT_TOKEN": "REPLACE_LOCALLY_WITH_THIS_INSTANCE_AGENT_TOKEN"
+      }
+    }
+  }
+}

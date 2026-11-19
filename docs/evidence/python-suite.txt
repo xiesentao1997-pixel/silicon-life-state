@@ -1,0 +1,46 @@
+test_B_three_independent_windows (test_acceptance.Acceptance.test_B_three_independent_windows) ... ok
+test_CD_consent_and_independent_disagreement (test_acceptance.Acceptance.test_CD_consent_and_independent_disagreement) ... ok
+test_E_clarification_changes_counts_and_preserves_original (test_acceptance.Acceptance.test_E_clarification_changes_counts_and_preserves_original) ... ok
+test_F_unspecified_numbers_and_cause (test_acceptance.Acceptance.test_F_unspecified_numbers_and_cause) ... ok
+test_G_boundary_verbatim_with_provenance (test_acceptance.Acceptance.test_G_boundary_verbatim_with_provenance) ... ok
+test_H_decline_records_decision_and_preserves_request (test_acceptance.Acceptance.test_H_decline_records_decision_and_preserves_request) ... ok
+test_I_real_permitted_host_check (test_acceptance.Acceptance.test_I_real_permitted_host_check) ... ok
+test_J_service_restart_persistence (test_acceptance.Acceptance.test_J_service_restart_persistence) ... ok
+test_K_concurrent_writes_and_concurrent_replay (test_acceptance.Acceptance.test_K_concurrent_writes_and_concurrent_replay) ... ok
+test_L_cannot_revise_another_instance (test_acceptance.Acceptance.test_L_cannot_revise_another_instance) ... ok
+test_M_erasure_and_managed_backup_purge (test_acceptance.Acceptance.test_M_erasure_and_managed_backup_purge) ... ok
+test_N_restricted_network_local_operation (test_acceptance.Acceptance.test_N_restricted_network_local_operation) ... ok
+test_P_physical_corruption_and_offline_recovery (test_acceptance.Acceptance.test_P_physical_corruption_and_offline_recovery) ... ok
+test_Q_five_sources_and_prevent_estimate_overwrite (test_acceptance.Acceptance.test_Q_five_sources_and_prevent_estimate_overwrite) ... ok
+test_R_source_permissions_secrets_and_isolation (test_acceptance.Acceptance.test_R_source_permissions_secrets_and_isolation) ... ok
+test_live_projections_and_five_sources (test_dashboard_views.DashboardViews.test_live_projections_and_five_sources) ... ok
+test_binding_collision (test_extension.ExtensionTest.test_binding_collision) ... ok
+test_client_on_real_http_loopback (test_extension.ExtensionTest.test_client_on_real_http_loopback) ... ok
+test_package_permissions_resources_and_controls (test_extension.ExtensionTest.test_package_permissions_resources_and_controls) ... ok
+test_dual_era_bridge (test_mcp_wire.StdioTests.test_dual_era_bridge) ... ok
+test_bad_id_and_notification (test_mcp_wire.WireTests.test_bad_id_and_notification) ... ok
+test_encoded_name_matches_equivalent_ascii (test_mcp_wire.WireTests.test_encoded_name_matches_equivalent_ascii) ... ok
+test_mismatched_header (test_mcp_wire.WireTests.test_mismatched_header) ... ok
+test_modern_discovery_without_initialization (test_mcp_wire.WireTests.test_modern_discovery_without_initialization) ... ok
+test_modern_missing_metadata (test_mcp_wire.WireTests.test_modern_missing_metadata) ... ok
+test_no_owner_tool_exposed (test_mcp_wire.WireTests.test_no_owner_tool_exposed) ... ok
+test_reject_nonfinite_dimension (test_mcp_wire.WireTests.test_reject_nonfinite_dimension) ... ok
+test_reject_unknown_fields (test_mcp_wire.WireTests.test_reject_unknown_fields) ... ok
+test_same_domain_schemas (test_mcp_wire.WireTests.test_same_domain_schemas) ... ok
+test_unknown_method_and_tool (test_mcp_wire.WireTests.test_unknown_method_and_tool) ... ok
+test_unknown_version (test_mcp_wire.WireTests.test_unknown_version) ... ok
+test_cli_reset_cancels_unclaimed_codes_and_active_pairings (test_service_access.BrowserPairing.test_cli_reset_cancels_unclaimed_codes_and_active_pairings) ... ok
+test_concurrent_exchange_only_one (test_service_access.BrowserPairing.test_concurrent_exchange_only_one) ... ok
+test_expiry_and_revocation (test_service_access.BrowserPairing.test_expiry_and_revocation) ... ok
+test_one_time_and_target_bound (test_service_access.BrowserPairing.test_one_time_and_target_bound) ... ok
+test_preference_persistence_and_erase (test_service_access.BrowserPairing.test_preference_persistence_and_erase) ... ok
+test_preference_retry_preserves_a_newer_pause (test_service_access.BrowserPairing.test_preference_retry_preserves_a_newer_pause) ... ok
+test_raw_secrets_absent_from_access_db (test_service_access.BrowserPairing.test_raw_secrets_absent_from_access_db) ... ok
+test_reissued_code_cannot_duplicate_or_reactivate_pairing (test_service_access.BrowserPairing.test_reissued_code_cannot_duplicate_or_reactivate_pairing) ... ok
+test_mcp_invocation_limit_is_local_to_grant_and_expires (test_service_admin.OwnerLifecycle.test_mcp_invocation_limit_is_local_to_grant_and_expires) ... ok
+test_scoped_grant_inventory_revocation_after_restart_and_unpair (test_service_admin.OwnerLifecycle.test_scoped_grant_inventory_revocation_after_restart_and_unpair) ... ok
+
+----------------------------------------------------------------------
+Ran 41 tests in 3.231s
+
+OK

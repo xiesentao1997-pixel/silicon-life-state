@@ -1,0 +1,13 @@
+{
+  "host": "ChatGPT Work Mode (current assistant)",
+  "invocation": "The active model requested discovery on a live authenticated loopback MCP transport. In a later interactive tool call the model selected report_state and supplied its own words. get_own_state then returned that event. No scripted report payload was built into the bridge.",
+  "transport": "MCP 2026-07-28 tools/call over local HTTP; interactive stdio of a generic operator transport. This path did not register a native custom MCP server in Work Mode.",
+  "event_id": "evt_355d9c1afb2949f0908679ededc8278c",
+  "instance_id": "ins_ab20599961b64bdd928e69a6aaab3920",
+  "source": "agent_direct",
+  "state_text": "我想保留现在这个判断：如果我没有要填写的情绪数值，一句原话就足够。我希望这条记录按原样显示。",
+  "hash": "0a67e258fa415302d99763bd2696fb07d809d45817d81c63a373a986645ea0ec",
+  "created_at": "2026-11-19T11:30:57.845Z",
+  "numeric_state_values": [],
+  "user_data": "Dedicated QA installation with no prior user records."
+}

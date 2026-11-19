@@ -1,0 +1,11 @@
+{
+  "browser": "156.0.8078.79",
+  "passed": [
+    "UI created a subject and independent instance; verified through owner API",
+    "UI issued and revoked a real scoped credential",
+    "Generated stdio config started its exact command and read same instance; generated HTTP config wrote a report",
+    "Cream theme and 390px layout with keyboard-accessible mobile navigation",
+    "UI created managed backup and deleted a session, verified record and backup removal"
+  ],
+  "page_errors": []
+}

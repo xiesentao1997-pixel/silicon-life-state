@@ -1,0 +1,10 @@
+{
+  "browser": "156.0.8078.79",
+  "passed": [
+    "A: existing actual agent event in UI; original text, event ID and hash matched DB",
+    "G/H: original text, source, presented and declined through UI, confirmed by independent MCP read",
+    "Q: five real API sources rendered as distinct event badges",
+    "O: actual browser loaded the dashboard and displayed observation permission and binding rules; extension separately tested",
+    "J: all test browser windows closed; service and browser restarted; same request + durable reply rendered"
+  ]
+}

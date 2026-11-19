@@ -1,0 +1,6 @@
+Chromium 156.0.8078.79, Debian Linux, isolated Playwright persistent profile.
+The native unpacked extension could not be installed in the managed desktop browser.
+Chromium returned “Loading of unpacked extensions is disabled by the administrator.”
+No machine policies were changed. Native side-panel registration, toolbar notification and permission prompt were not verified in this managed browser.
+See tests/extension_browser.py for the normal developer-workstation procedure.
+Three rendered provider DOM fixtures and the released sidebar UI with a simulated browser host ran separately. See browser-adapters.txt and sidebar-fixture.txt.

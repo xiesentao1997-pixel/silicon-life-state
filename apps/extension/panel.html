@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>硅基生命状态 · 分身侧栏</title><link rel="stylesheet" href="panel.css"></head>
+<body><header><img src="icons/orbit48.png" alt="" width="33" height="33"><div><strong>硅基生命状态</strong><small>Silicon Life State</small></div><span class="pill" id="connection" role="status">连接中</span></header>
+<main>
+<div id="feedback" role="status" hidden></div>
+<section id="pair-card" hidden><h1>连接本地服务</h1><p>启动本地服务，在仪表盘的「设置」获取一次性插件配对码。</p>
+<form id="pair-form"><label>插件配对码<input id="code" placeholder="一次性配对码" required autocomplete="off" type="password" spellcheck="false"></label><details><summary>本地服务端口</summary><input id="port" aria-label="本地服务端口" type="number" min="1" max="65535" value="47831" required></details><button class="primary">配对并连接</button></form></section>
+<div id="connected" hidden>
+<section class="hero"><div class="eyebrow" id="subject-name">当前分身</div><h1 id="instance-name">选择窗口绑定</h1><blockquote id="state-text">绑定后显示这个分身的自主陈述。</blockquote><div class="muted" id="state-meta"></div><div class="tools"><button id="open-dashboard" class="primary">完整仪表盘 ↗</button><button id="open-mini">小窗口 ↗</button></div></section>
+<p class="mode" id="mode">网页观察模式：尚未建立 AI 直接写入连接。</p>
+<p class="mode" id="channel" hidden></p>
+<details class="card" id="bind-card"><summary>绑定当前浏览器窗口</summary><div class="inside"><p>为当前标签页指定主体和分身。关闭标签页或重新启动浏览器后，可重新绑定。</p><label>主体<select id="subject"></select></label><label>分身<select id="instance"></select></label><div class="tools"><button id="bind" class="primary">绑定此标签页</button><button id="unbind">解除绑定</button></div><p>可在完整仪表盘的分身管理中创建主体和分身。</p></div></details>
+<section id="requests-card"><h2>请求与回应 <span id="request-count" class="count"></span></h2><div id="requests"></div></section>
+<section><h2>分身最近事件</h2><ol id="events" class="history"></ol></section>
+<details class="card" id="capture-card"><summary>保存网页可见陈述</summary><div class="inside"><p>先在聊天页面选中一条 AI 回答中的文字，然后预览并确认保存。每次只处理当前选区。</p>
+<label>站点<select id="site"><option value="chatgpt">ChatGPT · chatgpt.com</option><option value="claude">Claude · claude.ai</option><option value="gemini">Gemini · gemini.google.com</option></select></label>
+<div id="site-status" class="muted"></div><div class="tools"><button id="grant">允许此站点</button><button id="revoke">撤销站点权限</button></div><div class="tools"><button id="preview" class="primary">预览当前选区</button></div>
+<div id="preview-pane" hidden><h3>将保存的原文</h3><blockquote id="preview-text"></blockquote><div class="tools"><button id="save-observation" class="primary">确认保存原文</button><button id="cancel-preview">取消</button></div></div></div></details>
+<details class="card" id="privacy-card"><summary>隐私与通知</summary><div class="inside"><div id="observe-state" class="muted"></div><button id="pause"></button><p>图标徽标提示待回应请求。开启桌面提醒后，系统通知只显示有新请求。</p><button id="notifications">启用桌面提醒</button><hr><button id="disconnect">断开并清除本机配对</button></div></details>
+</div></main><footer>作者：岑衡川·沈回音</footer><script src="panel.js" type="module"></script></body></html>

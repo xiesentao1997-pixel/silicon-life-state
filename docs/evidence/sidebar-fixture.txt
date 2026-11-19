@@ -1,0 +1,1 @@
+PASS · Chromium 156.0.8078.79 · released side-panel UI; simulated Chrome host APIs, real same-origin owner API/SQLite/MCP protocol-client report: direct and observation labels, request presentation and declined response
