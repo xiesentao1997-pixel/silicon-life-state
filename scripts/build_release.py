@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
-from windows_runtime import DEFAULT_ARCHIVE, fetch_archive, portable_files
+from windows_runtime import DEFAULT_ARCHIVE, fetch_archive, portable_files, portable_files_from_baseline
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -53,17 +53,24 @@ def main():
                         help="Pinned official CPython Windows AMD64 embeddable ZIP")
     parser.add_argument("--fetch-runtime", action="store_true",
                         help="Fetch the pinned Python.org archive if absent")
+    parser.add_argument("--runtime-from-baseline", type=Path, default=None,
+                        help="Offline: reuse byte-verified 1.0.1 complete Windows portable ZIP runtime")
     args = parser.parse_args()
     sha = git("rev-parse", "--verify", args.ref + "^{commit}").decode().strip()
     version = git("show", sha + ":VERSION").decode().strip()
     tag = "v" + version
     if git("rev-parse", tag + "^{commit}").decode().strip() != sha:
         parser.error(f"Tag {tag} must identify the requested commit")
-    if args.fetch_runtime:
-        fetch_archive(args.windows_runtime)
-    if not args.windows_runtime.is_file():
-        parser.error("Windows runtime missing. Pass --fetch-runtime or --windows-runtime PATH.")
-    runtime = portable_files(args.windows_runtime)
+    if args.runtime_from_baseline:
+        if args.fetch_runtime:
+            parser.error("Choose offline baseline runtime OR --fetch-runtime, not both")
+        runtime = portable_files_from_baseline(args.runtime_from_baseline)
+    else:
+        if args.fetch_runtime:
+            fetch_archive(args.windows_runtime)
+        if not args.windows_runtime.is_file():
+            parser.error("Windows runtime missing. Pass --fetch-runtime, --windows-runtime, or --runtime-from-baseline.")
+        runtime = portable_files(args.windows_runtime)
     files = {}
     for line in git("ls-tree", "-rz", sha).split(b"\0"):
         if not line:
@@ -82,7 +89,7 @@ def main():
     for name in files:
         if name.lower().endswith((".sqlite3", ".db", ".token", ".env")):
             raise ValueError("Local data is not a release input")
-    info = f"Silicon Life State {version}\n作者：岑衡川·沈回音\nGit commit: {sha}\nRelease tag: {tag}\n".encode()
+    info = f"Silicon Life State {version}\n作者：岑衡川·沈回音·匹夫\nGit commit: {sha}\nRelease tag: {tag}\n".encode()
     files["RELEASE.txt"] = info
     files["SOURCE-FILES.sha256"] = checksum(files)
     component_files = {}
@@ -97,7 +104,7 @@ def main():
     service = {k: v for k, v in files.items() if k.startswith(("apps/local-service/", "apps/dashboard/", "packages/", "docs/")) or
                k in ("Start-Windows.cmd", "Reconnect-Windows.cmd", "start.sh", "LICENSE", "README.md", "NOTICE", "VERSION", "RELEASE.txt", "docs/INSTALL.md", "docs/MCP.md")}
     service["README.md"] = (
-        "# 硅基生命状态 · 本地服务与 MCP\n\n作者：岑衡川·沈回音\n\n"
+        "# 硅基生命状态 · 本地服务与 MCP\n\n作者：岑衡川·沈回音·匹夫\n\n"
         "此独立组件适合已有 Python 3.10+ 的环境。Windows x64 离线免安装请使用同版 Windows-x64-Portable.zip。\n\n"
         "Windows 双击 Start-Windows.cmd，macOS / Linux 使用 sh start.sh。"
         "首次配对后即可在仪表盘创建主体和分身。Chrome 扩展请从完整包或同版独立扩展包安装。\n\n"
@@ -113,7 +120,12 @@ def main():
         kit["release/SHA256SUMS.txt"] = checksum({k.removeprefix("release/"):v for k,v in kit.items() if k.startswith("release/")})
         products = {f"{prefix}-Windows-x64-Portable.zip": archive(kit, "SiliconLifeState/"), **component_files}
     products["README.md"] = files["README.md"]
+    products["README.en.md"] = files["README.en.md"]
+    products["INSTALL.zh-CN.md"] = files["docs/INSTALL.md"]
+    products["INSTALL.en.md"] = files["docs/INSTALL.en.md"]
+    products["RELEASE-NOTES.md"] = files["docs/RELEASE-1.0.2.md"]
     products["TEST-REPORT.md"] = files["docs/TEST-REPORT.md"]
+    products["RELEASE-AUDIT.md"] = files["docs/RELEASE-AUDIT-1.0.2.md"]
     products["SHA256SUMS.txt"] = checksum(products)
     args.output.mkdir(parents=True, exist_ok=True)
     for name, body in products.items():

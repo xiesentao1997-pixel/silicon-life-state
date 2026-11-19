@@ -94,6 +94,39 @@ def portable_files(archive):
     return files
 
 
+
+def portable_files_from_baseline(portable_zip):
+    """Reuse identical verified CPython bytes from the v1.0.1 complete portable ZIP.
+
+    This offline path does not pretend to reconstruct the original official ZIP.
+    It checks the previously published baseline archive checksum and every
+    upstream file SHA-256 against its pinned runtime manifest.
+    """
+    BASELINE_SHA256 = "78d520e05d1d2e9059b3d367ff670f4424f1ff8c66dc68fdb513a68735e62083"
+    data = Path(portable_zip).read_bytes()
+    if digest(data) != BASELINE_SHA256:
+        raise ValueError("Baseline Windows portable ZIP does not match pinned v1.0.1 SHA256")
+    with zipfile.ZipFile(io.BytesIO(data)) as baseline:
+        prefix = "SiliconLifeState/runtime/"
+        paths = [path for path in baseline.namelist() if path.startswith(prefix)]
+        entries = {path.removeprefix(prefix): baseline.read(path) for path in paths}
+    manifest = json.loads(entries.pop("SLS-RUNTIME.json").decode())
+    if manifest["archive_sha256"] != SHA256 or manifest["version"] != VERSION:
+        raise ValueError("Baseline embedded runtime provenance mismatches pinned official Python")
+    if set(entries) != set(manifest["files_sha256"]):
+        raise ValueError("Baseline embedded runtime members differ from manifest")
+    if any(digest(entries[n]) != checksum for n, checksum in manifest["files_sha256"].items()):
+        raise ValueError("Baseline runtime byte integrity check failed")
+    if b"PYTHON SOFTWARE FOUNDATION LICENSE" not in entries["LICENSE.txt"].upper():
+        raise ValueError("Baseline CPython license missing")
+    for name, body in entries.items():
+        if name.lower().endswith((".dll", ".exe", ".pyd")):
+            check_x64_pe(body, name)
+    return {"runtime/" + name: body for name, body in entries.items()} | {
+        "runtime/SLS-RUNTIME.json": (json.dumps(manifest, indent=2) + "\n").encode()
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--archive", type=Path, default=DEFAULT_ARCHIVE)

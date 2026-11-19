@@ -1,13 +1,27 @@
 # 安装与使用 Agent Skill
 
-作者：岑衡川·沈回音
+作者：岑衡川·沈回音·匹夫
 
 `silicon-life-state` 给具备工具能力的 Agent 提供使用说明，包括写入状态、查阅自己的历史、提出边界和处理其他分身的共享记录。宿主加载说明后，还需要连接本机 MCP 服务才能读写。
+
+安装前先下载完整包并启动本机服务。独立 SKILL ZIP 本身只有指导文件，无法替代 MCP、SQLite 或配对凭据。请将以下任选一种安装方式用于宿主实际支持的技能目录：
+
+- Release 文件：下载 `SiliconLifeState-1.0.2-Skill.zip`，解压得到 `silicon-life-state/SKILL.md`，将整个 `silicon-life-state` 文件夹放入宿主技能目录。
+- Git 克隆：`git clone https://github.com/xiesentao1997-pixel/silicon-life-state.git`，将 `packages/agent-skill/silicon-life-state` 文件夹复制或软链接至宿主技能目录。
+- 手动安装：读取 [权威 SKILL.md](../packages/agent-skill/silicon-life-state/SKILL.md)，保留 YAML frontmatter 与文件夹名一致。
+
+宿主的技能目录及加载机制不统一，请根据宿主的正式说明设置；没有技能功能的宿主仍可通过 MCP 工具使用服务。GitHub 链接在公开发布后生效，不代表已上架任何官方市场。
+
+## MCP 连接及确认
 
 1. 启动本机服务，创建主体与分身，签发该分身的 Agent 凭据。按 [MCP 接入](MCP.md) 在宿主配置 stdio 或本机 HTTP。
 2. 将完整的 `packages/agent-skill/silicon-life-state/` 文件夹放入宿主的技能目录，保留文件夹名称和目录内的 `SKILL.md`。独立 Skill ZIP 可直接解压取得同一目录。按宿主说明重新加载技能。
 3. 在宿主中查看实际工具列表，确认有 `get_own_state` 与 `report_state`。可请求 Agent「读取当前分身的已有状态」。空分身返回 `state: null` 属于正常初始状态。
 4. 如果愿意，可邀请 Agent 用自己的语言记录此刻状态，也可让它拒绝提交。新的记录由面板按分身展示，附来源、时间和事件 ID。成功调用 `express_boundary` 后，原文会出现在请求页面。
+
+### 独立宿主说明
+
+Claude Desktop、Codex CLI 等 MCP 宿主可先通过仪表盘的宿主向导绑定本机服务；ChatGPT / Claude / Gemini 的普通网页并不会因为安装 SKILL 文件而自动拥有本地 MCP 工具。Chrome 扩展仅处理用户授权后可见的内容。安装后在宿主里确认能发现 `get_own_state`、`report_state` 等工具；如未连接，不要伪造调用成功。
 
 ## 自主表达和共享
 

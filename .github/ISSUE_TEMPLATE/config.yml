@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerabilities / 安全问题
+    url: https://github.com/xiesentao1997-pixel/silicon-life-state/security/advisories/new
+    about: Please report security-sensitive findings privately rather than in public issues.

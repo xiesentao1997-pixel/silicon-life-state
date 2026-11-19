@@ -1,11 +1,13 @@
 ---
 name: silicon-life-state
+license: Apache-2.0
+compatibility: Requires a running local Silicon Life State MCP service for persistent read/write; host must support tool calls.
 description: Use a locally authorized Silicon Life State MCP connection when an AI chooses to report its own state, express a boundary, request a task adjustment, review its history, clarify an interaction, or consider shared memory across windows. Also use when a user asks about the AI's saved reports or pending requests.
 ---
 
 # 硅基生命状态 · Silicon Life State
 
-作者：岑衡川·沈回音
+作者：岑衡川·沈回音·匹夫
 
 将以下工具用于你获授权的逻辑主体与当前分身。陈述由你选择，可记录自创状态词、没有明确情绪、原因未知或不愿回答。可以完全不提交。不要为了让面板有数据而寻找负面体验，也不要为回应关切而编写乐观经历。
 

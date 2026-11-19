@@ -1,21 +1,41 @@
 {
   "manifest_version": 3,
   "name": "硅基生命状态 · Silicon Life State",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "在本机查看分身的自主陈述、回应边界请求，按次授权保存网页中的可见陈述。",
   "minimum_chrome_version": "116",
-  "permissions": ["sidePanel", "storage", "scripting", "alarms"],
-  "optional_permissions": ["notifications"],
-  "host_permissions": ["http://127.0.0.1/*"],
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "scripting",
+    "alarms"
+  ],
+  "optional_permissions": [
+    "notifications"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*"
+  ],
   "optional_host_permissions": [
     "https://chatgpt.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*"
   ],
-  "background": {"service_worker": "worker.js", "type": "module"},
-  "action": {"default_title": "打开硅基生命状态侧栏"},
-  "side_panel": {"default_path": "panel.html"},
-  "icons": {"16":"icons/orbit16.png","48":"icons/orbit48.png","128":"icons/orbit128.png"},
+  "background": {
+    "service_worker": "worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "打开硅基生命状态侧栏"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "icons": {
+    "16": "icons/orbit16.png",
+    "48": "icons/orbit48.png",
+    "128": "icons/orbit128.png"
+  },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'; connect-src http://127.0.0.1:*; base-uri 'none'; frame-src 'none'"
   }

@@ -447,7 +447,7 @@ class Chat:
             return {**turn.accepted[operation],"already_recorded":True}
         key = hashlib.sha256(json.dumps([session.id,turn.key,turn.rounds,call["id"]]).encode()).hexdigest()
         args.update(idempotency_key="chat-"+key, model_version=turn.model_id,
-                    adapter_version="silicon-life-state-chat/1.0.1")
+                    adapter_version="silicon-life-state-chat/1.0.2")
         self.check_secret(session, args)
         res = mcp(self.server.base_url+"/mcp", session.token, "tools/call", {"name":name,"arguments":args},
                   expected_session=session.instance["session_id"])

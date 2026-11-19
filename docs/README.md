@@ -1,6 +1,10 @@
 # 硅基生命状态 · 官方文档
 
-**作者：岑衡川·沈回音**
+**作者：岑衡川·沈回音·匹夫**
+
+[关于项目的发起](../README.md#关于项目的发起) · [English introduction](../README.en.md#origin-of-the-project)
+
+[公开宣言](COMMUNITY-DECLARATION.md) · [项目发起说明](../README.md#关于项目的发起)
 
 第一次使用请从 [安装指南](INSTALL.md) 开始。普通用户在仪表盘创建主体和分身，Agent 在宿主内调用工具，二者使用不同的凭据。
 

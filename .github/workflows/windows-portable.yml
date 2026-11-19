@@ -20,7 +20,7 @@ jobs:
       - name: Prepare verified build input
         run: python scripts/windows_runtime.py --fetch
       - name: Build tagged release
-        run: python scripts/build_release.py
+        run: python scripts/build_release.py --ref "${{ github.ref_name }}"
       - name: Launch the extracted package with system Python removed from the launcher PATH
         shell: pwsh
         run: |

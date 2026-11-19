@@ -31,7 +31,7 @@ from reconnect import bundle, endpoint_proof, existing_endpoint, publish_endpoin
 from packages.core.store import DomainError, Store
 from mcp_wire import error as rpc_error, handle_http
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 DEFAULT_PORT = 47831
 ASSETS = ROOT / "apps" / "dashboard"
 MAX_BYTES = 1024 * 1024
@@ -492,7 +492,7 @@ def show_connection(args, info, data_dir, already_running):
         print(json.dumps({**info, "version": VERSION, "existing_service": already_running}), flush=True)
     else:
         status = "已连接运行中的本地服务。" if already_running else "请保留此窗口。按 Ctrl+C 退出服务。"
-        print(f"\n硅基生命状态  {VERSION}\n作者：岑衡川·沈回音\n\n本机仪表盘\n{info['dashboard_url']}"
+        print(f"\n硅基生命状态  {VERSION}\n作者：岑衡川·沈回音·匹夫\n\n本机仪表盘\n{info['dashboard_url']}"
               f"\n\n浏览器扩展配对码（10 分钟内有效，仅使用一次）\n{info['extension_code']}"
               f"\n到期时间（UTC）  {info['extension_expires_at']}"
               f"\n\n数据目录  {data_dir}\nMCP 地址  {info['base_url']}/mcp\n{status}\n", flush=True)
