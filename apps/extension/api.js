@@ -47,12 +47,36 @@ export async function localApi(path, {body, port, token, anonymous = false} = {}
     const msg = typeof data.error === 'string' ? data.error : data.error?.message || data.message || res.statusText;
     const error = new Error(msg || '服务请求失败');
     error.status = res.status;
+    error.code = data.error?.code;
     throw error;
   }
   return data;
 }
 export const key = () => crypto.randomUUID();
 export const bindingKey = tabId => 'binding:' + tabId;
+export async function openPairingDashboard(port) {
+  const home = new URL(endpoint(port));
+  const recoveryUrl = home.origin + '/#view=settings&action=pair-extension';
+  // An existing dashboard keeps its owner's sessionStorage when its hash changes.
+  const candidates = await chrome.tabs.query({url: 'http://127.0.0.1/*'});
+  const existing = candidates.filter(tab => {
+    if (!tab.url || tab.pendingUrl) return false;
+    const url = new URL(tab.url);
+    return url.origin === home.origin && (url.pathname === '/' || url.pathname === '/index.html');
+  }).sort((left, right) => (right.lastAccessed || 0) - (left.lastAccessed || 0))[0];
+  if (existing) {
+    try {
+      await chrome.tabs.update(existing.id, {active: true, url: recoveryUrl});
+    } catch {
+      // The matching tab can close between query and activation.
+      await chrome.tabs.create({url: recoveryUrl});
+      return;
+    }
+    await chrome.windows.update(existing.windowId, {focused: true});
+    return;
+  }
+  await chrome.tabs.create({url: recoveryUrl});
+}
 export function textOf(event) {
   if (!event) return '';
   const p = event.payload || {};

@@ -1,0 +1,13 @@
+{
+  "browser": "156.0.8078.79",
+  "passed": [
+    "UI created a subject and independent instance; verified through owner API",
+    "Confirmed Claude JSON and Codex TOML merges preserved other settings and created exact backups",
+    "Live stdio tools/list probe, an independent stdio client's discovery, and no report displayed separately",
+    "UI issued and revoked a real scoped credential",
+    "Manual HTTP config issued a protocol-client report; wizard displayed the matching persisted event",
+    "Cream theme and 390px layout with keyboard-accessible mobile navigation",
+    "UI created managed backup and deleted a session, verified record and backup removal"
+  ],
+  "page_errors": []
+}

@@ -2,6 +2,7 @@
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
 if exist "%~dp0runtime\python.exe" goto portable
+if exist "%~dp0runtime\SLS-RUNTIME.json" goto damaged
 where py >nul 2>nul
 if errorlevel 1 goto plain
 py -3 -c "import sys,sqlite3;sys.exit(sys.version_info[:2] < (3,10))" >nul 2>nul
@@ -16,8 +17,15 @@ if errorlevel 1 goto missing
 python apps\local-service\server.py %*
 goto done
 :portable
+"%~dp0runtime\python.exe" -I -c "import sys,sqlite3,ssl,http.server; sys.exit(sys.version_info[:2] < (3,10) or sqlite3.connect(':memory:').execute('SELECT 1').fetchone() != (1,))"
+if errorlevel 1 goto damaged
 "%~dp0runtime\python.exe" apps\local-service\server.py %*
 goto done
+:damaged
+echo The portable Python runtime is missing or its Python, SQLite or SSL checks failed.
+echo Extract the complete Windows x64 portable release again, then reopen Start-Windows.cmd.
+pause
+exit /b 1
 :missing
 echo Silicon Life State requires Python 3.10 or newer.
 echo Download official portable Python 3.14.10 from www.python.org?

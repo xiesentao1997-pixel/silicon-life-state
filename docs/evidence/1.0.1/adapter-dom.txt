@@ -1,0 +1,1 @@
+PASS · Chromium 156.0.8078.79 · ChatGPT / Claude / Gemini visible-only DOM fixtures, assistant and non-assistant selections

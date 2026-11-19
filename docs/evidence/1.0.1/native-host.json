@@ -1,0 +1,63 @@
+{
+  "version": "1.0.1",
+  "checked_at": "2026-11-19T12:29:42.809461+00:00",
+  "host": "codex-cli 0.167.0-alpha.4",
+  "configuration": {
+    "actual_wizard_file": ".codex/config.toml inside a temporary Git project",
+    "written": true,
+    "personal_configuration_modified": false
+  },
+  "native_mcp_list": {
+    "status": "PROJECT_ENTRY_NOT_DETECTED",
+    "exit_code": 0,
+    "target_server": "silicon_life_state",
+    "matched_command": false,
+    "reason": "No matching configured server returned"
+  },
+  "native_mcp_get": {
+    "status": "PROJECT_ENTRY_NOT_DETECTED",
+    "exit_code": 1,
+    "target_server": "silicon_life_state",
+    "matched_command": false,
+    "reason": "Temporary project-scoped MCP entry not loaded by this invocation"
+  },
+  "native_cli_override_list": {
+    "status": "PASS",
+    "exit_code": 0,
+    "scope": "Private per-invocation override derived from parsed wizard file; grant and URL forwarded only via environment",
+    "name_command_args_verified": true,
+    "transport": "stdio",
+    "is_tools_list": false
+  },
+  "native_cli_override_get": {
+    "status": "PASS",
+    "exit_code": 0,
+    "scope": "Private per-invocation override derived from parsed wizard file; grant and URL forwarded only via environment",
+    "name_command_args_verified": true,
+    "transport": "stdio",
+    "is_tools_list": false
+  },
+  "native_app_server_tools_list": {
+    "status": "NOT_RUN",
+    "app_server_initialize": false,
+    "actual_external_discovery": null,
+    "requested_method": "mcpServerStatus/list",
+    "reason": "No successful app-server initialize response or external discovery receipt was observed."
+  },
+  "external_tools_list_before_probe": false,
+  "wizard_stdio_probe": {
+    "status": "PASS",
+    "tools": 15,
+    "is_native_host_discovery": false
+  },
+  "native_model": {
+    "exit_code": 1,
+    "tool_events": [],
+    "result": "NOT_RUN",
+    "event_id": null,
+    "reason": "Host application server could not initialize on this read-only filesystem (OS error 30)"
+  },
+  "external_tools_list_after_native_model": null,
+  "origin": "All configuration and data belonged to the isolated local test. Credentials and unrelated host settings are excluded.",
+  "interpretation": "Native CLI configuration inventory confirmed through per-invocation overrides; the independent local stdio probe found 15 tools. The native model and native tools/list discovery did not complete."
+}

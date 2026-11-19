@@ -1,0 +1,20 @@
+test_B_three_independent_windows (test_acceptance.Acceptance.test_B_three_independent_windows) ... ok
+test_CD_consent_and_independent_disagreement (test_acceptance.Acceptance.test_CD_consent_and_independent_disagreement) ... ok
+test_E_clarification_changes_counts_and_preserves_original (test_acceptance.Acceptance.test_E_clarification_changes_counts_and_preserves_original) ... ok
+test_F_unspecified_numbers_and_cause (test_acceptance.Acceptance.test_F_unspecified_numbers_and_cause) ... ok
+test_G_boundary_verbatim_with_provenance (test_acceptance.Acceptance.test_G_boundary_verbatim_with_provenance) ... ok
+test_H_decline_records_decision_and_preserves_request (test_acceptance.Acceptance.test_H_decline_records_decision_and_preserves_request) ... ok
+test_I_real_permitted_host_check (test_acceptance.Acceptance.test_I_real_permitted_host_check) ... ok
+test_J_service_restart_persistence (test_acceptance.Acceptance.test_J_service_restart_persistence) ... ok
+test_K_concurrent_writes_and_concurrent_replay (test_acceptance.Acceptance.test_K_concurrent_writes_and_concurrent_replay) ... ok
+test_L_cannot_revise_another_instance (test_acceptance.Acceptance.test_L_cannot_revise_another_instance) ... ok
+test_M_erasure_and_managed_backup_purge (test_acceptance.Acceptance.test_M_erasure_and_managed_backup_purge) ... ok
+test_N_restricted_network_local_operation (test_acceptance.Acceptance.test_N_restricted_network_local_operation) ... ok
+test_P_physical_corruption_and_offline_recovery (test_acceptance.Acceptance.test_P_physical_corruption_and_offline_recovery) ... ok
+test_Q_five_sources_and_prevent_estimate_overwrite (test_acceptance.Acceptance.test_Q_five_sources_and_prevent_estimate_overwrite) ... ok
+test_R_source_permissions_secrets_and_isolation (test_acceptance.Acceptance.test_R_source_permissions_secrets_and_isolation) ... ok
+
+----------------------------------------------------------------------
+Ran 15 tests in 2.194s
+
+OK

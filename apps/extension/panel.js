@@ -1,4 +1,4 @@
-import {SITE, bindingKey, localApi, launchDashboard, key, portNumber, sourceName, stageName, textOf} from './api.js';
+import {SITE, bindingKey, localApi, launchDashboard, openPairingDashboard, key, portNumber, sourceName, stageName, textOf} from './api.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -207,11 +207,30 @@ async function refresh() {
     }
   }
 }
+click('recover-pair', async () => {
+  await openPairingDashboard(portNumber($('port').value));
+  notice('在仪表盘生成插件配对码，复制后回到这里粘贴。');
+});
+$('code').addEventListener('input', () => $('code').removeAttribute('aria-invalid'));
 $('pair-form').addEventListener('submit',event => {
   event.preventDefault();
   action(async () => {
     const port = portNumber($('port').value);
-    const result = await localApi('pair',{port,anonymous:true,body:{code:$('code').value.trim()}});
+    const input = $('code');
+    const code = input.value.trim();
+    let result;
+    try {
+      result = await localApi('pair',{port,anonymous:true,body:{code}});
+    } catch (error) {
+      const expired = ['PAIR_EXPIRED','PAIR_USED','PAIR_REPLACED'].includes(error.code);
+      if (input.value.trim() === code && (expired || ['PAIR_WRONG_TARGET','INVALID_PAIR_CODE'].includes(error.code))) {
+        if (expired) input.value = '';
+        input.setAttribute('aria-invalid','true');
+        input.focus();
+        input.select();
+      }
+      throw error;
+    }
     if (!result.token) throw new Error('本地服务没有返回配对凭据。');
     await chrome.storage.local.setAccessLevel({accessLevel:'TRUSTED_CONTEXTS'});
     await chrome.storage.local.set({port,token:result.token});

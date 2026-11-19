@@ -191,6 +191,15 @@ class Store:
     def __init__(self, data_dir):
         self.files = Files(data_dir)
 
+    def authorize_chat_instance(self, instance_id):
+        """Internal owner-only handoff. Reuse the instance grant without exposing it to a provider."""
+        with self._guard(), self.files.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            instance = _instance(db, instance_id)
+            grant = self._owner(db, 'connection_grant', {'instance_id': instance_id})
+            db.commit()
+            return instance, grant['grant_id'], self._grant_token(grant['grant_id'])
+
     def authenticate_agent(self, token):
         with self._guard(), self.files.connect() as db:
             return _credentials(db,token)
@@ -207,13 +216,13 @@ class Store:
             except OSError as exc:
                 raise DomainError('STORAGE_ERROR','The requested local storage operation failed.',503) from exc
 
-    def tool(self, token, name, args):
-        return self._dispatch(False,token,name,args)
+    def tool(self, token, name, args, *, expected_session=None):
+        return self._dispatch(False,token,name,args,expected_session=expected_session)
 
     def admin(self, action, args):
         return self._dispatch(True,None,action,args)
 
-    def _dispatch(self, owner, token, action, args):
+    def _dispatch(self, owner, token, action, args, *, expected_session=None):
         validate(action,args,owner)
         with self._guard():
             if owner and action in {'backup','restore','list_backups'}:
@@ -232,6 +241,8 @@ class Store:
                 if owner:
                     result = self._owner(db,action,args)
                 else:
+                    if expected_session and _instance(db,grant['instance_id'])['session_id'] != expected_session:
+                        fail('SESSION_CHANGED','The active session of this instance has changed.',409)
                     result = self._agent(db,grant,action,args)
                 if action not in READS:
                     db.execute('INSERT INTO receipts VALUES(?,?,?,?,?)',(actor,key,action,sign,canonical(result)))
@@ -244,7 +255,7 @@ class Store:
         return 'sls_'+hmac.new(self.files.key,gid.encode(),hashlib.sha256).hexdigest()
 
     def _deliver(self,db,action,result):
-        if action=='issue_agent':
+        if action in {'issue_agent','connection_grant'}:
             if not db.execute('SELECT 1 FROM grants WHERE grant_id=?',(result['grant_id'],)).fetchone():
                 fail('CREDENTIAL_REVOKED','This credential has already been revoked.',410)
             return {**result,'token':self._grant_token(result['grant_id'])}
@@ -340,6 +351,12 @@ class Store:
             return _create_subject(db,args['name'])
         if action=='create_instance':
             return _create_instance(db,args['subject_id'],args['name'])
+        if action=='connection_grant':
+            live = db.execute('SELECT grant_id,subject_id,instance_id FROM grants WHERE instance_id=?',
+                              (args['instance_id'],)).fetchone()
+            if live:
+                return dict(live)
+            return self._owner(db,'issue_agent',args)
         if action=='issue_agent':
             sid,iid = args.get('subject_id'),args.get('instance_id')
             if iid:

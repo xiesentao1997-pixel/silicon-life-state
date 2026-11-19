@@ -1,0 +1,16 @@
+test_detect_concurrent_edit (test_host_wizard.HostWizardTests.test_detect_concurrent_edit) ... ok
+test_invalid_and_duplicate_json_remain_unchanged (test_host_wizard.HostWizardTests.test_invalid_and_duplicate_json_remain_unchanged) ... ok
+test_json_preserves_others_and_backs_up_exact_original (test_host_wizard.HostWizardTests.test_json_preserves_others_and_backs_up_exact_original) ... ok
+test_manual_http_copy_and_probe_reuses_grant (test_host_wizard.HostWizardTests.test_manual_http_copy_and_probe_reuses_grant) ... ok
+test_migrate_v100_json_entry_and_preserve_its_options (test_host_wizard.HostWizardTests.test_migrate_v100_json_entry_and_preserve_its_options) ... ok
+test_path_link_requires_manual_merge (test_host_wizard.HostWizardTests.test_path_link_requires_manual_merge) ... ok
+test_probe_failure_shows_no_success (test_host_wizard.HostWizardTests.test_probe_failure_shows_no_success) ... ok
+test_real_stdio_transport_probe_and_separate_host_activity (test_host_wizard.HostWizardTests.test_real_stdio_transport_probe_and_separate_host_activity) ... ok
+test_requires_same_owner_and_explicit_consent (test_host_wizard.HostWizardTests.test_requires_same_owner_and_explicit_consent) ... ok
+test_toml_preserves_comments_and_updates_managed_block (test_host_wizard.HostWizardTests.test_toml_preserves_comments_and_updates_managed_block) ... ok
+test_unmanaged_same_name_and_invalid_toml (test_host_wizard.HostWizardTests.test_unmanaged_same_name_and_invalid_toml) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 5.622s
+
+OK

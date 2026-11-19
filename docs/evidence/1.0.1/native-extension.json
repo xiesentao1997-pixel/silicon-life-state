@@ -1,0 +1,9 @@
+{
+  "version": "1.0.1",
+  "browser": "Chromium 156.0.8078.79",
+  "native_load": "BLOCKED",
+  "diagnostic": "Chromium unpacked-loader diagnostic: CDPSession.send: Protocol error (Extensions.loadUnpacked): Loading of unpacked extensions is disabled by the administrator.",
+  "policy_modified": false,
+  "web_account_login_sites_tested": [],
+  "real_renderer": "Three site DOM fixtures and bundled sidebar with test tab/storage APIs, real loopback service + database."
+}

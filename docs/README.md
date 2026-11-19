@@ -6,6 +6,8 @@
 
 | 想做什么 | 入口 |
 | --- | --- |
+| 在仪表盘里与真实模型对话 | [模型对话](MODEL-CHAT.md) |
+| Windows 离线启动及运行时校验 | [Windows 绿色版](WINDOWS-PORTABLE.md) |
 | 接上第一个能写入状态的 Agent | [SKILL](SKILL.md)、[MCP 接口与示例](MCP.md) |
 | 查看窗口状态、保存网页可见陈述 | [浏览器操作](EXTENSION.md) |
 | 理解共享、部分采纳、修订和来源 | [架构说明](ARCHITECTURE.md) |

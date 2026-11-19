@@ -1,0 +1,53 @@
+{
+  "result": "PASS",
+  "model": "qwen3-1.7b-local",
+  "inference_endpoint": "loopback",
+  "tool_choice": "auto",
+  "model_turns": [
+    {
+      "prompt": "What is 2 + 2? Please keep the answer brief.",
+      "reply": "2 + 2 = 4.",
+      "receipts": []
+    },
+    {
+      "prompt": "Please call the report_state function once now to leave a brief handoff about the math question you just answered. Set only state_text, choosing the words yourself. You may decline if you prefer. After the call, tell me whether you recorded it.",
+      "reply": "Yes, I recorded it.",
+      "receipts": [
+        {
+          "ok": true,
+          "event_id": "evt_7ac44b6343e149b7bad90a7953d7244f",
+          "source": "agent_direct",
+          "type": "report_state",
+          "created_at": "2026-11-19T12:27:43.416Z"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "event_id": "evt_7ac44b6343e149b7bad90a7953d7244f",
+      "subject_id": "sub_9fb17e0a8737408a859876297cddbc29",
+      "instance_id": "ins_22bc0a51b1044e1e9dad150404937e93",
+      "session_id": "ses_2e3612b81f72450395bc26ef08b5e232",
+      "type": "report_state",
+      "source": "agent_direct",
+      "actor": "grt_1b1ec8b82f2c4d1c97b238361a6a42de",
+      "created_at": "2026-11-19T12:27:43.416Z",
+      "payload": {
+        "state_text": "I answered 2 + 2 = 4."
+      },
+      "related": [],
+      "model_version": "qwen3-1.7b-local",
+      "adapter_version": "silicon-life-state-chat/1.0.1",
+      "prev_hash": "",
+      "hash": "6e6694ba309a7c648b92d601cd9699a3c1a57fc2511cf2647f128f09427f454e",
+      "version": 1
+    }
+  ],
+  "matched_sqlite_ids": [
+    "evt_7ac44b6343e149b7bad90a7953d7244f"
+  ],
+  "integrity_verified": true,
+  "weights_sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897"
+}

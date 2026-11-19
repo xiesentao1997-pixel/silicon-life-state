@@ -56,6 +56,41 @@ class ExtensionTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
 
     @unittest.skipUnless(shutil.which('node'), 'Node required only for JS integration testing')
+    def test_unpaired_recovery_preserves_local_dashboard_tab(self):
+        source = r"""
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const module = readFileSync(process.argv[1]).toString('base64');
+const {openPairingDashboard} = await import('data:text/javascript;base64,' + module);
+const base = 'http://127.0.0.1:47831';
+const recovery = base + '/#view=settings&action=pair-extension';
+const calls = [];
+let tabs = [
+  {id:1, windowId:1, url:base + '/#view=overview'},
+  {id:2, windowId:1, url:'http://127.0.0.1:8080/', lastAccessed:99},
+  {id:3, windowId:2, url:base + '/api/health', lastAccessed:200},
+];
+globalThis.chrome = {
+  tabs: {
+    query:async opts => {assert.deepEqual(opts, {url:'http://127.0.0.1/*'}); return tabs;},
+    update:async (id,opts) => calls.push(['update',id,opts]),
+    create:async opts => calls.push(['create',opts])
+  },
+  windows:{ update:async (id,opts) => calls.push(['focus',id,opts]) }
+};
+await openPairingDashboard(47831);
+assert.deepEqual(calls, [['update',1,{active:true,url:recovery}], ['focus',1,{focused:true}]]);
+tabs = [];
+await openPairingDashboard(47831);
+assert.deepEqual(calls[2], ['create',{url:recovery}]);
+await assert.rejects(openPairingDashboard('http://example.test/'));
+assert.equal(calls.length,3);
+"""
+        result = subprocess.run(['node','--input-type=module','-e',source,str(EXT/'api.js')],
+                                capture_output=True,text=True,timeout=10)
+        self.assertEqual(result.returncode,0,result.stderr)
+
+    @unittest.skipUnless(shutil.which('node'), 'Node required only for JS integration testing')
     def test_client_on_real_http_loopback(self):
         # Use the actual api.js module, real HTTP and real SQLite. Only extension storage
         # and runtime ID are supplied here. Native Chrome coverage is a separate script.

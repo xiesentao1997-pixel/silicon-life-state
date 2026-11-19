@@ -18,7 +18,17 @@ def main():
         args.output.mkdir(parents=True, exist_ok=True)
     passed = []
     with tempfile.TemporaryDirectory(prefix="sls-owner-ui-") as directory, sync_playwright() as pw:
-        service = Local(directory).start()
+        profiles = Path(directory)/"qa-hosts"
+        profiles.mkdir()
+        (profiles/"TEST-PROFILE").touch()
+        claude = profiles/"claude_desktop_config.json"
+        existing = {"mcpServers":{"research":{"command":"prior-host-tool"}},"theme":"unchanged"}
+        claude.write_text(json.dumps(existing,indent=2),encoding="utf-8")
+        original = claude.read_bytes()
+        codex = profiles/"config.toml"
+        original_toml = '# Existing comments and spacing\n[mcp_servers.notes]\ncommand = "prior-host-tool"\n'
+        codex.write_text(original_toml,encoding="utf-8")
+        service = Local(Path(directory)/"state",server=Path(__file__).with_name("wizard_fixture_service.py")).start()
         try:
             launch = {"executable_path": os.environ["SILICON_CHROMIUM"]} if os.getenv("SILICON_CHROMIUM") else {}
             browser = pw.chromium.launch(**launch)
@@ -43,23 +53,65 @@ def main():
             iid = snap["instances"][0]["instance_id"]
             passed.append("UI created a subject and independent instance; verified through owner API")
 
-            page.locator("[data-act=issue]").click()
-            form.locator("button[type=submit]").click()
-            expect(page.locator("#dialog-title")).to_have_text("MCP 分身凭据")
-            config = json.loads(page.locator("dialog pre").text_content())["mcpServers"]["silicon-life-state"]
+            def preview(host,transport="stdio"):
+                page.locator("#content [data-act=issue]").first.click()
+                form.locator("[name=host]").select_option(host)
+                if host == "other":
+                    form.locator("[name=transport]").select_option(transport)
+                form.locator("button[type=submit]").click()
+                expect(page.locator("#host-wizard-preview")).to_be_visible()
+
+            def apply():
+                page.locator("[data-wiz=apply]").click()
+                expect(page.locator("[data-wiz-status]")).to_contain_text("配置已保存")
+
+            def close_dialog():
+                page.locator("dialog [data-act=close]").first.click()
+
+            preview("claude")
+            assert claude.read_bytes() == original
+            assert not service.api("credentials")["grants"]
+            apply()
+            merged = json.loads(claude.read_text(encoding="utf-8"))
+            assert merged["theme"] == existing["theme"]
+            assert merged["mcpServers"]["research"] == existing["mcpServers"]["research"]
+            assert next(profiles.glob("claude_desktop_config.json.*.bak")).read_bytes() == original
+            config = merged["mcpServers"]["silicon_life_state"]
             assert Path(config["command"]).is_absolute() and Path(config["args"][0]).is_absolute()
             assert config["env"]["SILICON_MCP_URL"] == service.base + "/mcp"
+            page.locator("[data-wiz=probe]").click()
+            expect(page.locator("[data-wiz-status]")).to_contain_text("试连完成")
+            status = page.locator("[data-wiz-activity]")
+            expect(status).to_contain_text("已发现")
+            expect(status).to_contain_text("尚未观测到")
+            expect(status).to_contain_text("尚未收到")
             requests = [
-                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
-                    "protocolVersion": "2025-11-25", "clientInfo": {"name":"dashboard-qa","version":"1"}, "capabilities":{}}},
-                {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name":"get_own_state","arguments":{}}},
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+                    "protocolVersion":"2025-11-25","clientInfo":{"name":"dashboard-qa","version":"1"},"capabilities":{}}},
+                {"jsonrpc":"2.0","method":"notifications/initialized"},
+                {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}},
+                {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_own_state","arguments":{}}}
             ]
-            child = subprocess.run([config["command"], *config["args"]], env={**os.environ, **config["env"]},
-                                   input="".join(json.dumps(message)+"\n" for message in requests),
-                                   text=True, encoding="utf-8", capture_output=True, check=True, timeout=20)
-            answer = next(row for row in map(json.loads, child.stdout.splitlines()) if row["id"] == 2)
-            assert answer["result"]["structuredContent"]["instance_id"] == iid
-            page.locator("dialog [data-act=close]").first.click()
+            child = subprocess.run([config["command"],*config["args"]],env={**os.environ,**config["env"]},
+                                   input="".join(json.dumps(msg)+"\n" for msg in requests),capture_output=True,
+                                   text=True,encoding="utf-8",timeout=20,check=True)
+            results = {r["id"]:r for r in map(json.loads,child.stdout.splitlines()) if "id" in r}
+            assert "report_state" in {t["name"] for t in results[2]["result"]["tools"]}
+            assert results[3]["result"]["structuredContent"]["instance_id"] == iid
+            page.locator("[data-wiz=status]").click()
+            expect(status).to_contain_text("dashboard-qa")
+            if args.output:
+                page.screenshot(path=str(args.output/"host-wizard.jpg"),type="jpeg",quality=86)
+            close_dialog()
+            preview("codex")
+            apply()
+            assert codex.read_text(encoding="utf-8").startswith(original_toml)
+            assert "[mcp_servers.silicon_life_state]" in codex.read_text(encoding="utf-8")
+            assert next(profiles.glob("config.toml.*.bak")).read_text(encoding="utf-8") == original_toml
+            close_dialog()
+            passed.append("Confirmed Claude JSON and Codex TOML merges preserved other settings and created exact backups")
+            passed.append("Live stdio tools/list probe, an independent stdio client's discovery, and no report displayed separately")
+
             page.locator(".nav-item[data-val=settings]").click()
             page.locator("[data-act=revoke-agent]").click()
             form.locator("button[type=submit]").click()
@@ -67,16 +119,17 @@ def main():
             assert not service.api("credentials")["grants"]
             passed.append("UI issued and revoked a real scoped credential")
 
-            page.locator("[data-act=issue]").click()
-            form.locator("[name=transport]").select_option("http")
-            form.locator("button[type=submit]").click()
-            expect(page.locator("#dialog-title")).to_have_text("MCP 分身凭据")
-            config = json.loads(page.locator("dialog pre").text_content())["mcpServers"]["silicon-life-state"]
-            assert config["url"] == service.base + "/mcp" and config["headers"]["Authorization"].startswith("Bearer ")
+            preview("other","http")
+            with page.expect_response(lambda r:r.url.endswith("/api/hosts/copy")) as copied:
+                page.locator("[data-wiz=copy]").click()
+            config = json.loads(copied.value.json()["config"])["mcpServers"]["silicon_life_state"]
+            assert config["url"] == service.base + "/mcp"
             grant = config["headers"]["Authorization"].removeprefix("Bearer ")
-            page.locator("dialog [data-act=close]").first.click()
-            service.tool(grant, "report_state", state_text="用于检查窄屏呈现的自主报告。", valence=.25, load=20)
-            passed.append("Generated stdio config started its exact command and read same instance; generated HTTP config wrote a report")
+            report = service.tool(grant,"report_state",state_text="用于检查窄屏呈现的自主报告。",valence=.25,load=20)
+            page.locator("[data-wiz=status]").click()
+            expect(page.locator("[data-wiz-activity]")).to_contain_text(report["event_id"])
+            close_dialog()
+            passed.append("Manual HTTP config issued a protocol-client report; wizard displayed the matching persisted event")
             page.locator(".nav-item[data-val=overview]").click()
             expect(page.locator(".big-quote").first).to_have_text("用于检查窄屏呈现的自主报告。", timeout=10000)
             page.locator("[data-act=theme]").click()

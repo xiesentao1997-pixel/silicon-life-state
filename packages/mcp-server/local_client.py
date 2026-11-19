@@ -11,7 +11,7 @@ from mcp_wire import PREFIX, VERSION, error
 DEFAULT_URL = "http://127.0.0.1:47831/mcp"
 
 def meta(client="silicon-life-state-client"):
-    return {PREFIX+"protocolVersion":VERSION,PREFIX+"clientCapabilities":{},PREFIX+"clientInfo":{"name":client,"version":"1.0.0"}}
+    return {PREFIX+"protocolVersion":VERSION,PREFIX+"clientCapabilities":{},PREFIX+"clientInfo":{"name":client,"version":"1.0.1"}}
 
 def message(method, params=None, client="silicon-life-state-client"):
     return {"jsonrpc":"2.0","id":str(uuid.uuid4()),"method":method,"params":{"_meta":meta(client),**(params or {})}}
@@ -21,14 +21,14 @@ def as_header(name):
         return name
     return "=?base64?" + base64.b64encode(name.encode("utf-8")).decode("ascii") + "?="
 
-def connection():
-    u = urlsplit(os.environ.get("SILICON_MCP_URL", DEFAULT_URL))
+def connection(url=None):
+    u = urlsplit(url if url is not None else os.environ.get("SILICON_MCP_URL", DEFAULT_URL))
     if (u.scheme != "http" or u.hostname != "127.0.0.1" or u.path != "/mcp" or
             u.username is not None or u.password is not None or u.query or u.fragment):
         raise ValueError("SILICON_MCP_URL must be http://127.0.0.1:PORT/mcp")
     return http.client.HTTPConnection("127.0.0.1",u.port or 80,timeout=15)
 
-def send(msg, token=None):
+def send(msg, token=None, *, url=None, expected_session=None):
     token = token or os.environ.get("SILICON_AGENT_TOKEN","")
     if not token:
         raise ValueError("Set SILICON_AGENT_TOKEN to this instance's agent credential")
@@ -37,11 +37,13 @@ def send(msg, token=None):
     h = {"Authorization":"Bearer "+token,"Content-Type":"application/json",
          "Accept":"application/json, text/event-stream","Mcp-Method":method,
          "MCP-Protocol-Version":params.get("_meta",{}).get(PREFIX+"protocolVersion",VERSION)}
+    if expected_session:
+        h["SLS-Expected-Session"] = expected_session
     if method in ("tools/call","resources/read","prompts/get"):
         name = params.get("uri" if method=="resources/read" else "name")
         if isinstance(name,str):
             h["Mcp-Name"] = as_header(name)
-    conn = connection()
+    conn = connection(url)
     try:
         conn.request("POST","/mcp",json.dumps(msg,ensure_ascii=True,allow_nan=False).encode("utf-8"),h)
         response = conn.getresponse()

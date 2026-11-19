@@ -23,12 +23,15 @@ ROOT = HERE.parent.parent
 sys.path.insert(0, str(HERE))  # Also works with the isolated Windows embeddable runtime.
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "packages" / "mcp-server"))
+from model_chat import Chat
 from access import Access, AccessError
+from host_wizard import HostWizard
 from schemas import document
+from reconnect import bundle, endpoint_proof, existing_endpoint, publish_endpoint
 from packages.core.store import DomainError, Store
 from mcp_wire import error as rpc_error, handle_http
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 DEFAULT_PORT = 47831
 ASSETS = ROOT / "apps" / "dashboard"
 MAX_BYTES = 1024 * 1024
@@ -132,12 +135,19 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, port, store, access):
         self.store = store
+        self.launch_key = os.urandom(32)
         self.invocations = InvocationBudget()
+        self.chats = Chat(self)
         self.access = access
         self.mutations = threading.RLock()
         self.connections = threading.BoundedSemaphore(64)
         super().__init__(("127.0.0.1", port), Handler)
         self.base_url = f"http://127.0.0.1:{self.server_port}"
+        self.host_wizard = HostWizard(store, self.base_url)
+
+    def service_actions(self):
+        self.chats.expire()
+        super().service_actions()
 
     def process_request(self, request, client_address):
         if not self.connections.acquire(blocking=False):
@@ -299,7 +309,11 @@ class Handler(BaseHTTPRequestHandler):
                     self.reply(429, rpc_error(rid, -32000, "Per-grant invocation limit reached"),
                                headers={"Retry-After": str(retry)})
                     return
-            status, headers, answer = handle_http(obj, self.headers, lambda name, args: store.tool(token, name, args))
+            expected_session = self.header("SLS-Expected-Session") or None
+            status, headers, answer = handle_http(obj, self.headers, lambda name, args: store.tool(
+                token, name, args, expected_session=expected_session))
+            if status == 200 and isinstance(obj, dict) and obj.get("method") == "tools/list":
+                self.server.host_wizard.discovery(principal["grant_id"], obj)
             self.reply(status, answer, headers=headers)
             return
         if not path.startswith("/api/"):
@@ -309,7 +323,13 @@ class Handler(BaseHTTPRequestHandler):
                 self.reply(405, headers={"Allow": "GET, HEAD"})
             return
         if path == "/api/health" and self.command == "GET":
-            self.reply(200, {"ok": True, "version": VERSION, "local_only": True})
+            health = {"ok": True, "version": VERSION, "local_only": True}
+            challenge = self.header("X-SLS-Reconnect-Challenge")
+            if challenge:
+                if self.header("Origin") or not re.fullmatch(r"[0-9a-f]{64}", challenge):
+                    raise AccessError(400, "INVALID_CHALLENGE", "本机服务核验请求无效。")
+                health["reconnect_proof"] = endpoint_proof(self.server.launch_key, self.server.server_port, challenge)
+            self.reply(200, health)
             return
         if path == "/api/pair" and self.command == "POST":
             body = self.payload()
@@ -346,6 +366,9 @@ class Handler(BaseHTTPRequestHandler):
         body = self.payload()
         if not isinstance(body, dict):
             raise AccessError(400, "INVALID_INPUT", "请求应为 JSON 对象。")
+        if path.startswith("/api/chat/"):
+            self.reply(200, self.server.chats.dispatch(path.removeprefix("/api/chat/"), body, token, origin))
+            return
         with self.server.mutations:
             # A pairing may have been revoked between the initial check and taking the lock.
             access.check(token, origin)
@@ -354,12 +377,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def mutate(self, path, body, token, origin):
         store, access = self.server.store, self.server.access
+        if path == "/api/pair/status":
+            require_keys(body, {"code"})
+            return access.code_status(body.get("code"))
+        if path.startswith("/api/hosts/"):
+            if origin != self.server.base_url:
+                raise AccessError(403, "DASHBOARD_REQUIRED", "请从已配对的本机仪表盘配置 Agent 宿主。")
+            return self.server.host_wizard.dispatch(token, path.removeprefix("/api/hosts/"), body)
         if path == "/api/pair/code":
-            require_keys(body, {"target", "idempotency_key"})
-            return access.paired_code(token, body.get("idempotency_key"), body.get("target", "extension"))
+            require_keys(body, {"target", "idempotency_key", "replaces"})
+            return access.paired_code(token, body.get("idempotency_key"), body.get("target", "extension"), body.get("replaces"))
         if path == "/api/logout":
             require_keys(body, {"idempotency_key"})
-            return access.revoke(token)
+            result = access.revoke(token)
+            self.server.chats.invalidate(owner=token)
+            return result
         if path == "/api/settings":
             require_keys(body, {"observation_enabled", "idempotency_key"})
             if type(body.get("observation_enabled")) is not bool:
@@ -398,6 +430,7 @@ class Handler(BaseHTTPRequestHandler):
             if scope != "all":
                 args[scope + "_id"] = body.get("id")
             result = store.admin("delete_" + scope, args)
+            self.server.chats.invalidate(scope=scope, target=body.get("id"))
             if scope == "all":
                 access.reset(token)
             return result
@@ -407,6 +440,10 @@ class Handler(BaseHTTPRequestHandler):
         if path not in actions:
             raise AccessError(404, "NOT_FOUND", "接口不存在。")
         result = store.admin(actions[path], body)
+        if path == "/api/restore":
+            self.server.chats.invalidate()
+        if path == "/api/credentials/revoke":
+            self.server.chats.invalidate(grant_id=result["grant_id"])
         if path == "/api/credentials":
             result = {**result, "stdio": {
                 "command": sys.executable,
@@ -441,12 +478,29 @@ def parser():
     p.add_argument("--no-browser", action="store_true", help="do not open the dashboard automatically")
     p.add_argument("--json-ready", action="store_true", help="print machine-readable startup/pairing information")
     group = p.add_mutually_exclusive_group()
+    group.add_argument("--reconnect", action="store_true", help="open a fresh authenticated pairing dashboard on this installation")
     group.add_argument("--unpair-all", action="store_true", help="invalidate all owner dashboard/extension sessions and unused pairing codes")
     group.add_argument("--pair", action="store_true", help="issue a new 10-minute pairing code for a running service")
     group.add_argument("--list-backups", action="store_true", help="list managed backups")
     group.add_argument("--recover", metavar="BACKUP_ID", help="recover offline from a managed backup, including after DB corruption")
     p.add_argument("--target", choices=["dashboard", "extension"], default="dashboard", help="client for --pair")
     return p
+
+
+def show_connection(args, info, data_dir, already_running):
+    if args.json_ready:
+        print(json.dumps({**info, "version": VERSION, "existing_service": already_running}), flush=True)
+    else:
+        status = "已连接运行中的本地服务。" if already_running else "请保留此窗口。按 Ctrl+C 退出服务。"
+        print(f"\n硅基生命状态  {VERSION}\n作者：岑衡川·沈回音\n\n本机仪表盘\n{info['dashboard_url']}"
+              f"\n\n浏览器扩展配对码（10 分钟内有效，仅使用一次）\n{info['extension_code']}"
+              f"\n到期时间（UTC）  {info['extension_expires_at']}"
+              f"\n\n数据目录  {data_dir}\nMCP 地址  {info['base_url']}/mcp\n{status}\n", flush=True)
+    if not args.no_browser:
+        try:
+            webbrowser.open(info["dashboard_url"])
+        except webbrowser.Error:
+            pass
 
 
 def main():
@@ -457,6 +511,11 @@ def main():
         os.umask(0o077)
     data_dir = args.data_dir.expanduser().resolve()
     data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if args.reconnect:
+        base = existing_endpoint(data_dir)
+        if base:
+            show_connection(args, bundle(Access(data_dir), base, reconnect=True), data_dir, True)
+            return 0
     if args.unpair_all:
         print(json.dumps(Access(data_dir).unpair_all()))
         return 0
@@ -475,23 +534,9 @@ def main():
             print(json.dumps(result, ensure_ascii=False))
             return 0
         access = Access(data_dir)
-        with LocalServer(args.port, store, access) as server:
-            code = access.issue_code("dashboard")["code"]
-            ext_code = access.issue_code("extension")["code"]
-            url = server.base_url + "/#pair=" + code
-            if args.json_ready:
-                print(json.dumps({"base_url": server.base_url, "dashboard_url": url, "code": code,
-                                  "extension_code": ext_code, "version": VERSION}), flush=True)
-            else:
-                print(f"\n硅基生命状态  {VERSION}\n作者：岑衡川·沈回音\n\n本机仪表盘\n{url}"
-                      f"\n\n浏览器扩展配对码（10 分钟有效，仅使用一次）\n{ext_code}"
-                      f"\n\n数据目录  {data_dir}\nMCP 地址  {server.base_url}/mcp"
-                      "\n请保留此窗口。按 Ctrl+C 退出服务。\n", flush=True)
-            if not args.no_browser:
-                try:
-                    webbrowser.open(url)
-                except webbrowser.Error:
-                    pass
+        with LocalServer(args.port, store, access) as server, publish_endpoint(data_dir, server):
+            info = bundle(access, server.base_url, reconnect=args.reconnect)
+            show_connection(args, info, data_dir, False)
             try:
                 server.serve_forever()
             except KeyboardInterrupt:

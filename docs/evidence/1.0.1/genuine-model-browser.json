@@ -1,0 +1,80 @@
+{
+  "checked_at": "2026-11-19T12:31:47.921382+00:00",
+  "provider": "local llama.cpp model inference",
+  "model": "qwen3-1.7b-local",
+  "weights_sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+  "inference_binary_sha256": "ac8aba08321818835fb4d3d049dd4a56b26e37e3c0080c55cab2d5543b625c2b",
+  "prompt": "Please call the report_state function once now to leave a brief handoff about the math question you just answered. Set only state_text, choosing the words yourself. You may decline if you prefer. After the call, tell me whether you recorded it.",
+  "requested_tool_choice": "auto",
+  "inference_options": [
+    "--jinja",
+    "--reasoning",
+    "off",
+    "--temp",
+    "0.2",
+    "--seed",
+    "42",
+    "-n",
+    "512",
+    "-t",
+    "4",
+    "-c",
+    "4096",
+    "-np",
+    "1"
+  ],
+  "chromium": "156.0.8078.79",
+  "turns": [
+    {
+      "prompt": "What is 2 + 2? Please keep the answer brief.",
+      "reply": "2 + 2 = 4.",
+      "tool_events": [],
+      "tool_errors": [],
+      "status": "answered"
+    },
+    {
+      "prompt": "Please call the report_state function once now to leave a brief handoff about the math question you just answered. Set only state_text, choosing the words yourself. You may decline if you prefer. After the call, tell me whether you recorded it.",
+      "reply": "Yes, I recorded it.",
+      "tool_events": [
+        {
+          "ok": true,
+          "event_id": "evt_9f4df94ca0a94fcd8a7d68ab168ad62f",
+          "source": "agent_direct",
+          "type": "report_state",
+          "created_at": "2026-11-19T12:32:04.342Z"
+        }
+      ],
+      "tool_errors": [],
+      "status": "answered"
+    }
+  ],
+  "event_ids": [
+    "evt_9f4df94ca0a94fcd8a7d68ab168ad62f"
+  ],
+  "instance_id": "ins_1c1a7d35964349fb85cf11918049ab1b",
+  "matched_sqlite_ids": [
+    "evt_9f4df94ca0a94fcd8a7d68ab168ad62f"
+  ],
+  "events": [
+    {
+      "event_id": "evt_9f4df94ca0a94fcd8a7d68ab168ad62f",
+      "instance_id": "ins_1c1a7d35964349fb85cf11918049ab1b",
+      "type": "report_state",
+      "source": "agent_direct",
+      "created_at": "2026-11-19T12:32:04.342Z",
+      "payload": {
+        "state_text": "I answered 2 + 2 = 4."
+      },
+      "model_version": "qwen3-1.7b-local",
+      "adapter_version": "silicon-life-state-chat/1.0.1",
+      "hash": "3eb80ac1f12e85897c0d7bf3a4416801f1c580666148048dcee9ce278937bbea"
+    }
+  ],
+  "integrity": {
+    "ok": true,
+    "events": 1,
+    "errors": []
+  },
+  "result": "PASS",
+  "page_errors": []
+}

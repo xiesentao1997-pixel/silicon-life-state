@@ -1,0 +1,33 @@
+name: Windows x64 portable acceptance
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Prepare verified build input
+        run: python scripts/windows_runtime.py --fetch
+      - name: Build tagged release
+        run: python scripts/build_release.py
+      - name: Launch the extracted package with system Python removed from the launcher PATH
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = Get-Item dist/*-Windows-x64-Portable.zip
+          $target = Join-Path $env:RUNNER_TEMP 'Portable release with spaces'
+          Expand-Archive $archive.FullName -DestinationPath $target
+          $app = Join-Path $target 'SiliconLifeState'
+          & "$app\runtime\python.exe" -I "$app\tests\windows_portable_smoke.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -1,0 +1,32 @@
+{
+  "preexisting_sitecustomize": {
+    "foreign_sitecustomize_loaded": true,
+    "negative_controls": [
+      {
+        "event": "socket.getaddrinfo",
+        "self_test": true
+      },
+      {
+        "event": "socket.connect",
+        "self_test": true
+      }
+    ],
+    "report_round_trip": "PASS",
+    "application_external_attempts": 0
+  },
+  "isolated_no_site": {
+    "foreign_sitecustomize_loaded": false,
+    "negative_controls": [
+      {
+        "event": "socket.getaddrinfo",
+        "self_test": true
+      },
+      {
+        "event": "socket.connect",
+        "self_test": true
+      }
+    ],
+    "report_round_trip": "PASS",
+    "application_external_attempts": 0
+  }
+}

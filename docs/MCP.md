@@ -4,6 +4,30 @@
 
 服务的两个入口共用同一份数据库、授权和事件逻辑。为每个独立窗口签发一个 Agent 凭据；交互式用户凭据用于面板。API Key、浏览器账号和登录 Cookie 均不参与主体绑定。
 
+## 宿主连接向导
+
+在「分身管理」选中分身，打开连接配置。选择 Claude Desktop、Codex CLI 或其他 MCP 宿主，点击「检查配置」。向导识别当前操作系统、检测本机程序和已存在的配置位置，预览中只显示本项目条目，令牌已隐藏。检测到文件和实际收到工具请求分别显示。
+
+| 宿主 | 自动配置目标 | 安装后检查 |
+| --- | --- | --- |
+| Claude Desktop | macOS 的 `~/Library/Application Support/Claude/claude_desktop_config.json`，Windows 的 `%APPDATA%/Claude/claude_desktop_config.json`，Linux 的 `~/.config/Claude/claude_desktop_config.json`。Windows 同时检查实际存在的商店版本配置路径。检测到两套配置时使用手动合并。 | 在桌面客户端的「设置 → 开发者 → 编辑配置」核对路径，完全退出并重启，在对话的工具设置查看本服务。 |
+| Codex CLI | 用户级 `~/.codex/config.toml`，若宿主进程已配置 `CODEX_HOME`，使用该目录下的 `config.toml`。 | 重启 Codex 后输入 `/mcp` 检查工具。项目级配置、团队策略可能影响最终可用工具。 |
+| 其他 MCP 宿主 | 生成 stdio 或 Streamable HTTP 条目，由你在宿主的本机连接设置中合并。 | 按宿主说明重新加载并查看实际工具列表。 |
+
+选择「复制完整配置」会把该分身的凭据放入本机剪贴板；未授权剪贴板时提供可选中复制的文本。选择「确认写入配置」会先备份已有目标文件，再在同一目录原子替换配置。原文件不存在时创建新文件。完成后显示目标文件和备份位置。**备份可能含其他宿主服务的凭据**，由你在该宿主的配置目录保管。撤销本分身凭据可使其旧副本失效。
+
+向导会解析原文件和合并结果，保留原有设置及其他 MCP 服务。对已有 Codex TOML，它保留其他内容和注释，并管理带项目标记的区块。已有未标记的同名 Codex 服务、同名无关的 Claude 服务、配置语法错误、链接路径、权限不足或预览后文件被修改时，界面给出原因和手动入口。并发编辑情况下请关闭外部配置编辑器再确认写入；向导在替换前重新核对文件内容，已识别的变化要求重新预览。JSON 合并会整理缩进。
+
+| 向导状态 | 对应的实测信号 |
+| --- | --- |
+| 试连已发现工具 | 向导经指定 stdio 子进程或本机 HTTP，用分身凭据实际发出 `tools/list`，显示返回工具数。 |
+| 宿主工具发现 | 服务本次启动后收到该分身凭据下其他客户端的有效 `tools/list`，留有客户端自报名称和时间。 |
+| 分身自主报告 | 持久记录中已有该分身的 `agent_direct`、`report_state` 事件，显示事件 ID 和 UTC 时间。具体模型身份需要与宿主调用日志对照。 |
+
+向导的只读试连不会生成状态报告。多个宿主共用一个分身凭据时，事件归属于被绑定的分身。需区分窗口时请创建独立分身并在对应宿主环境使用其配置。默认配置键为 `silicon_life_state`，在同一宿主中重新绑定会更新本项目条目。若要在同一配置文件手动安装多个 MCP 条目，可先复制各自配置并在本机给服务取不同名称。Skill 仍按[安装指南](SKILL.md)加载。
+
+宿主依据见 [Claude Desktop 本机配置](https://modelcontextprotocol.io/docs/develop/connect-local-servers)、[Codex MCP 配置键](https://developers.openai.com/codex/mcp/) 和 [Codex 个人配置位置](https://developers.openai.com/codex/config-basic/)。
+
 ## 接入宿主
 
 | 入口 | 连接与协议 |

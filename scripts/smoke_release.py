@@ -64,7 +64,7 @@ def main():
         assert sha256((release / name).read_bytes()) == digest, name
     with tempfile.TemporaryDirectory(prefix="sls-release-smoke-") as tmp:
         tmp = Path(tmp)
-        with ZipFile(next(release.glob("*-All-in-One.zip"))) as archive:
+        with ZipFile(next(release.glob("*-Windows-x64-Portable.zip"))) as archive:
             archive.extractall(tmp / "full")
         tree = tmp / "full/SiliconLifeState"
         for line in (tree / "SOURCE-FILES.sha256").read_text().splitlines():
@@ -79,16 +79,31 @@ def main():
         with ZipFile(next(release.glob("*-Local-Service.zip"))) as archive:
             archive.extractall(tmp / "component")
         check_tree(tmp / "component/SiliconLifeState", tmp / "second")
-        bundle = tree / "release/SiliconLifeState.git.bundle"
+        release_assets = tree / "release"
+        for line in (release_assets / "SHA256SUMS.txt").read_text().splitlines():
+            expected, name = line.split("  ", 1)
+            component = (release_assets / name).read_bytes()
+            assert sha256(component) == expected, name
+            if name.endswith(".zip"):
+                assert component == (release / name).read_bytes(), name
+        bundle = release_assets / "SiliconLifeState.git.bundle"
+        runtime = tree / "runtime"
+        manifest = json.loads((runtime / "SLS-RUNTIME.json").read_text())
+        assert (runtime / "python.exe").read_bytes()[:2] == b"MZ"
+        assert (runtime / "LICENSE.txt").is_file() and (tree / "Reconnect-Windows.cmd").is_file()
+        for name, digest in manifest["files_sha256"].items():
+            assert sha256((runtime / name).read_bytes()) == digest, name
         git_dir = tmp / "git-test"
-        subprocess.run(["git","init","-q",str(git_dir)],check=True)
-        prefix = ["git","-C",str(git_dir)]
-        subprocess.run(prefix+["bundle","verify",str(bundle)],check=True,stdout=subprocess.DEVNULL)
+        subprocess.run(["git", "clone", "-q", str(bundle), str(git_dir)], check=True)
+        prefix = ["git", "-C", str(git_dir)]
+        assert subprocess.check_output(prefix + ["branch", "--show-current"]).decode().strip() == "main"
         tag = "v" + (tree / "VERSION").read_text().strip()
-        subprocess.run(prefix+["fetch","-q",str(bundle),f"refs/tags/{tag}:refs/tags/{tag}"],check=True)
+        assert subprocess.check_output(prefix + ["rev-parse", "HEAD"]) == subprocess.check_output(prefix + ["rev-parse", tag + "^{commit}"])
+        subprocess.run(prefix + ["merge-base", "--is-ancestor", "v1.0.0", tag], check=True)
+        assert (git_dir / "Start-Windows.cmd").is_file()
         actual_sha = subprocess.check_output(prefix+["rev-parse",tag+"^{commit}"]).decode().strip()
         assert "Git commit: " + actual_sha in (tree / "RELEASE.txt").read_text()
-    print(f"PASS · {len(sums)} hashes · complete ZIP + standalone service cold starts · extension + SKILL match · Git bundle/tag {actual_sha}")
+    print(f"PASS · {len(sums)} hashes · complete ZIP + standalone service cold starts · extension + SKILL match · bundled x64 runtime integrity · git clone default main/tag {actual_sha}")
 
 
 if __name__ == "__main__":

@@ -23,13 +23,14 @@ def main():
     active = {}
     slots = BoundedSemaphore(32)
     legacy_ready = False
+    legacy_client = None
 
     def emit(obj):
         data = json.dumps(obj,ensure_ascii=False,separators=(",",":"),allow_nan=False).encode("utf-8")
         sys.stdout.buffer.write(data+b"\n")
         sys.stdout.buffer.flush()
 
-    def run_request(msg, old, marker):
+    def run_request(msg, old, marker, client_info):
         rid = msg["id"]
         with lock:
             if active.get(rid) is not marker:
@@ -40,6 +41,8 @@ def main():
             if old:
                 params = dict(msg.get("params",{}))
                 params["_meta"] = {**params.get("_meta",{}),**meta("silicon-life-state-stdio-legacy")}
+                if client_info:
+                    params["_meta"][PREFIX+"clientInfo"] = client_info
                 msg = {**msg,"params":params}
             reply = send(msg)
             if old and "result" in reply:
@@ -97,6 +100,7 @@ def main():
                         emit(error(rid,-32602,"Invalid initialization parameters"))
                         continue
                     legacy_ready = True
+                    legacy_client = {key: str(params["clientInfo"].get(key,""))[:128] for key in ("name","version")}
                     emit({"jsonrpc":"2.0","id":rid,"result":{"protocolVersion":LEGACY,"capabilities":CAPABILITIES,"serverInfo":INFO,"instructions":INSTRUCTIONS}})
                     continue
                 if not modern and not legacy_ready:
@@ -110,7 +114,7 @@ def main():
                     continue
                 marker = object()
                 active[rid] = marker
-                pool.submit(run_request,msg,not modern,marker)
+                pool.submit(run_request,msg,not modern,marker,legacy_client)
     return 0
 
 if __name__ == "__main__":

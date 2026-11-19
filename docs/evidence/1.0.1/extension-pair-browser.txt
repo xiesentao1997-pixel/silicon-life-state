@@ -1,0 +1,3 @@
+PASS · Chromium 156.0.8078.79 real side-panel and dashboard, SQLite and authenticated HTTP; fixture tab/storage APIs
+PASS · expired/used/wrong-target messages; no credential request from unpaired extension; existing tab and fresh tab recovery; owner issue and new pairing
+PASS · service-timed countdown ticked, expired display and copy cleared, authenticated regenerate issued a working replacement

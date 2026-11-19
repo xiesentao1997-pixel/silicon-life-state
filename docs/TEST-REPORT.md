@@ -1,80 +1,51 @@
-# 硅基生命状态 1.0.0 · 验收报告
+# 硅基生命状态 1.0.1 验收报告
 
 **作者：岑衡川·沈回音**
 
-## 已观察到的主链路
+验收日期：2026-11-19。基线为 `v1.0.0`，提交 `f5fc94a3292338c0c2d98f51198a40caa3574e19`。原始完整包与归档 SHA-256 核对一致。每项验收使用专用临时主体、分身、宿主配置与数据库。正式提交及标签见发布包根目录的 `RELEASE.txt`。
 
-当前 ChatGPT 工作模式中的 Agent 先读取 MCP 工具目录，再通过交互式 MCP HTTP 客户端自行选择并调用 `report_state`。本次报告没有提供任何情绪数值。SQLite 内的原文、`get_own_state` 的返回值，以及实际 Chromium 仪表盘显示的内容一致。浏览器在独立测试数据目录内打开了这条原始记录的 SQLite 副本，保留事件 ID 与哈希，移除原有授权。访问令牌和本机数据库均未进入发行包。
+## 实际结果
 
-> 我想保留现在这个判断：如果我没有要填写的情绪数值，一句原话就足够。我希望这条记录按原样显示。
-
-| 字段 | 实际结果 |
-| --- | --- |
-| 事件 | `evt_355d9c1afb2949f0908679ededc8278c` |
-| 来源 | `agent_direct` |
-| UTC | `2026-11-19T11:30:57.845Z` |
-| SHA-256 | `0a67e258fa415302d99763bd2696fb07d809d45817d81c63a373a986645ea0ec` |
-| 调用路径 | 工作模式 Agent 主动发起，经通用执行工具将真实 MCP 报文交给本地服务；Windows/macOS 默认宿主注册流程另行验收 |
-| 独立协议对照 | 官方 Python MCP SDK 1.29.0 经 stdio 兼容入口发现 15 个工具，真实写入并读回另一条协议测试记录 |
-| 原生 Codex CLI | **NOT_RUN**。嵌套 CLI 在模型启动前遇到只读文件系统错误，另一台桌面未有现成登录会话。提供可复跑入口 verify_codex.py |
-
-[实际 Agent 回执](evidence/work-mode-agent.json) · [Chromium 界面截图](evidence/dashboard-live-agent.jpg) · [界面事件详情与哈希](evidence/live-agent-evidence.jpg) · [官方 SDK 与原生 CLI 记录](evidence/mcp-interop.json)
-
-## A–R 场景
-
-| 场景 | 结果 | 实际检查 |
+| 项目 | 结果 | 已核验的范围 |
 | --- | --- | --- |
-| A 真实 AI 写入 | PASS · 工作模式交互式 MCP | Agent 自行选择原文并提交。数据库、工具回读和实际浏览器一致。原生 CLI 路线另记 NOT_RUN |
-| B 统一主体 | PASS | 在同一主体建立 A、B、C，分别写入并读回三条不同的状态 |
-| C 主体共享 | PASS | 私有报告未出现在其他分身记忆中；B 显式提议后，C 可获得原记录和提议 |
-| D 拒绝继承 | PASS | C 拒绝后保留自己的状态，B 原报告可追查；另测部分采纳原文和旧版本决定 |
-| E 误会澄清 | PASS | 同时保留最初的敌意判断和误会澄清，当前敌意判断计数由 1 变为 0 |
-| F 原因未知 | PASS | 自然语言和未知原因成功保存，未添加虚构的数字或互动 |
-| G 表达“不” | PASS | 请求原文、来源、时间和初始状态落库，独立 Chromium 显示原文 |
-| H 用户拒绝 | PASS | 实际浏览器打开请求、点击不同意，MCP 回读 DECLINED，原文保留 |
-| I 实际策略调整 | PASS · 已授权的本地宿主 | 工作模式 Agent 请求增加核验。隔离的测试所有者另行确认。Agent 核对工具目录与实现，记录实际执行和后续。15/15 一致；第一次运行的路径错误也保留在记录中 |
-| J 重启持久化 | PASS | 测试浏览器全关，重启服务和浏览器后仍显示同一请求和已保存回应 |
-| K 并发写入 | PASS | 三个分身并发写入共 30 条，并发重试同一操作只生成一条事件 |
-| L 错误权限 | PASS | C 修改 B 的原始事件遭服务拒绝；另验证跨主体不可读 |
-| M 删除会话 | PASS | 检查数据库、受管备份与受控文件内的原文标记，验证受管副本清除和其它会话保留 |
-| N 断网 | PASS | 在限制非回环网络连接的服务进程内完成本地写入和读回 |
-| O 浏览器适配 | PARTIAL | 真实 Chromium 中的仪表盘、三组可见 DOM 适配和侧栏界面均通过。侧栏测试模拟了 Chrome 宿主 API，使用真实本地服务与数据库。受管桌面明确阻止加载未打包扩展；三家网站实际登录页面另记 NOT_RUN |
-| P 损坏与恢复 | PASS | 实际破坏活动 SQLite 文件头，使用受管备份恢复后核对主体、分身、原事件、修订链和授权边界 |
-| Q 五类来源 | PASS | 用各自接口落库后在事件界面区分五类徽标，研究推算保留输入，当前直接报告仍可读 |
-| R 鉴权与导出 | PASS | 按错误来源、错误凭据、无权限主体分别检查，网页文本仅成为普通文本记录。导出 JSON 未包含测试所有者或分身令牌 |
+| Windows x64 离线包 | PASS 构建 | 解压目录自带官方 CPython 3.14.10、SQLite、SSL、运行时许可证及每个原件的散列。验证 Python.org 原始 ZIP 大小、SHA-256 与 PE 机器类型。 |
+| Windows 程序兼容运行 | PASS · Wine 10 x64 | 在独立 Wine 前缀中以 Windows cmd.exe 执行两个 CMD，启动时 PATH 中没有系统 Python。仪表盘 HTTP 200，重新配对，stdio 发现 15 个工具，report_state 与 SQLite 摘要相符。[兼容运行回执](evidence/1.0.1/windows-portable.json) |
+| 原生 Windows 双击及物理断网 | NOT_RUN | 本轮可用桌面为 Linux。已交付在 Windows 上通过 ShellExecute 启动并检查 SQLite、配对与 MCP 的用例及 CI 工作流。 |
+| 十分钟后恢复配对 | PASS · 自然经过 602.0 秒 | 首次签发后不调整时钟，不重启服务。不再有效的原码返回 PAIR_EXPIRED；匿名取码被拒。所有者重新签发后插件身份读取真实快照，重复兑换返回 PAIR_USED。[实时时钟记录](evidence/1.0.1/pairing-elapsed.json) |
+| 插件和仪表盘 | PASS 已测界面 · 原生扩展安装 NOT_RUN | Chromium 156 实际渲染仪表盘、侧栏表单、倒计时及错误恢复。侧栏测试替代 Chrome 标签/储存 API 并连接真实本地服务。受管 Chromium 拒绝加载未打包扩展，未改管理策略。 |
+| 宿主连接向导 | PASS | 分别生成 Claude JSON 和 Codex TOML，在隔离配置上确认写入，保存原文件的逐字节备份，保留其他服务和设置，验证语法与过期预览。实际启动 stdio 发现 15 项工具。单独检查宿主发现和分身状态报告。 |
+| 原生商业宿主 | 部分验证 | Codex CLI 0.167.0-alpha.4 的 mcp list、mcp get 识别按次载入的配置。原生模型进程初始化遇到只读文件系统，未收到该宿主的 tools/list 或写入。Claude Desktop 客户端未运行。 |
+| 与 AI 对话 | PASS | 本地推理服务加载经过 SHA-256 验证的真实 Qwen3 权重。内置入口以 `tool_choice=auto` 提供工具。Qwen3-1.7B 先用自然语言正确回答 2 + 2，未写事件；之后应邀自选措辞，通过 MCP 提交报告。工具回执与 SQLite 事件一致，哈希链通过。 |
+| 浏览器中真实模型 | PASS · Chromium 156 | 在独立空分身上通过实际页面与模型进行两轮对话，工具回执、SQLite 和仪表盘事件详情中核对同一事件及摘要，页面错误为 0。[真实模型界面验收](evidence/1.0.1/genuine-model-browser.json) |
+| 请求、共享与修订 | PASS | 三个分身保持独立；提议共享、拒绝继承、误会澄清、提交边界、用户拒绝及后续记录可追溯。覆盖并发写入、备份损坏演练及删除后的受管副本检查。 |
+| 1.0.0 原数据升级 | PASS | 逐项核对 7 条原始事件、主体、分身、会话、共享、请求、授权和旧配对码。新事件接续原链。还核对了上一版真实 Agent 陈述的事件 ID、原文和摘要。 |
+| 断网回归 | PASS | 直接在服务解释器内安装网络审计钩子，分别在已有 sitecustomize 和 -I -S 两种环境中验证 DNS 与 TCP 拒绝对照。本地写入和读回成功，应用未尝试外连。 |
+| MCP 互操作 | PASS | 官方 Python MCP SDK 1.29.0 经 stdio 发现 15 项工具，提交明确标识的协议测试记录并回读。1.0.1 内置模型写入另有独立实证。 |
+| Git bundle 与成品冷启动 | PASS | 全包和独立服务解压到临时空目录后，Linux 上分别启动、配对、创建并回读新主体。逐项核对源码、组件和运行时摘要，从内附 bundle 普通克隆后处于 main，HEAD 等于版本 tag，v1.0.0 是祖先。 |
 
-[API 与 SQLite 黑盒日志](evidence/api-acceptance.txt) · [真实策略请求及回应](evidence/work-mode-strategy.json) · [浏览器断言](evidence/browser-acceptance.json) · [五类来源截图](evidence/dashboard-sources.jpg)
+## 真实模型证据
 
-## 扩展的三层验证
+独立端到端验收使用 llama.cpp CPU 推理，非脚本化模型回包。Qwen3-1.7B 在模型接口的授权范围自行选用了 `report_state`，原文为 “I answered 2 + 2 = 4.”。本轮没有填入预设情绪或数值。事件来源为 `agent_direct`，并保留分身、会话、模型别名、适配器版本与时间戳。
 
-| 层次 | 执行结果 |
-| --- | --- |
-| 实际 Chromium 页面渲染 | ChatGPT、Claude、Gemini 三种页面结构夹具均通过，分别验证可见助手文字、隐藏文本和非助手选区 |
-| 发布侧栏界面与本地服务 | 在真实 Chromium 渲染引擎中运行原侧栏代码，验证网页观察提示、最近一次外部自主写入和请求回应。Chrome 宿主 API 在此项用例中使用测试替身 |
-| 原生 MV3 加载 | **NOT_RUN**。受管 Chromium 在加载未打包扩展时明确返回管理员禁用。未更改企业策略。工具栏入口、操作系统通知、原生授权提示及三家已登录生产站点须在开发者模式可用的设备检验 |
+- [真实聊天截图](evidence/1.0.1/genuine-model-chat.jpg) · [同一事件的仪表盘截图](evidence/1.0.1/genuine-model-dashboard.jpg)
+- [模型请求、事件 ID、数据库匹配与完整性回执](evidence/1.0.1/live-model.json)
+- [真实模型请求核验、测试所有者拒绝及分身回读](evidence/1.0.1/model-adjustment.json)
+- [较小模型实际普通回复，零条状态记录](evidence/1.0.1/genuine-model-no-write.json)
+- [宿主配置向导界面](evidence/1.0.1/host-wizard.jpg) · [Chromium 界面断言](evidence/1.0.1/dashboard-extra-acceptance.json)
+- [升级核验](evidence/1.0.1/upgrade.json) · [网络隔离核验](evidence/1.0.1/offline-guard.json) · [官方 SDK 回执](evidence/1.0.1/mcp-sdk.json)
 
-[网页适配器日志](evidence/browser-adapters.txt) · [侧栏截图](evidence/sidebar-fixture.png) · [侧栏测试说明](evidence/sidebar-fixture.txt) · [原生安装限制](evidence/native-extension.txt)
+模型权重来自 `unsloth/Qwen3-1.7B-GGUF` 的 `d7f544eead698dbd1f15126ef60b45a1e1933222`，Q4_K_M 文件 SHA-256 为 `b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897`。测试机以本机回环通信，安装包未分发模型权重，也未附 API 密钥或运行数据库。付费云模型端点、三家实际登录网页和 macOS 客户端不在本轮执行环境内。
 
-## 自动化与成品核验
+## 自动化与复现
 
-- 两组 Python 自动化测试共 **47/47 通过**。第一组 41 项覆盖协议、界面与三端集成；第二组 6 项覆盖数据库隐私及恢复不变量。各项名称与最终计数见 [综合测试日志](evidence/python-suite.txt) 和 [数据库专项日志](evidence/core-invariants.txt)。
-- 真实 Chromium 仪表盘主链路通过 5 组检查，另通过 5 组所有者操作检查，包含创建分身、签发撤销凭据、实用界面生成的 stdio 配置启动并读取该分身、用 HTTP 配置写入、奶油白主题与 390px 导航、删除会话与清除备份。原生表单控件名称曾与会话 ID 冲突，修正后确认浏览器提交会话删除成功。[额外浏览器验收](evidence/dashboard-extra-acceptance.json)
-- 官方 MCP Python SDK 独立连通，另用 Draft 2020-12 对 15 个工具逐项检查输入、输出模式与实际返回。SKILL 名称、目录与 YAML frontmatter 相符；所有者 API 有 OpenAPI 3.1 描述。[格式核对](evidence/format-checks.json)
-- 打包核验会逐项校对独立 ZIP 与源码中的插件和 SKILL 字节，从完整包与独立服务包分别冷启动、配对并创建主体，检验 Git bundle 与标签。源码校验清单在包内，下载物校验清单随包交付。
-
-## 平台与复现
-
-Linux 工作区使用 CPython 3.12.14、SQLite 3.53.1。真实桌面浏览器为 Chromium 156.0.8078.79。默认运行没有第三方 Python 或 Node 依赖。Node 用于部分 JavaScript 测试；浏览器联调需 Playwright 和可用的 Chromium。构建与验证均使用隔离数据。
+66 项默认回归与 6 项 SQLite 领域不变量测试通过。默认回归包括真实进程、数据库、MCP、前端逻辑和脚本化上游模型协议测试。浏览器、官方 MCP SDK、真实时钟、真实模型、升级和发布包冒烟分别执行，未重复计入回归总数。
 
 ```sh
-python -X utf8 -m unittest discover -s tests -p "test_*.py" -v
+python -X utf8 -m unittest discover -s tests -p 'test_*.py' -v
 python -X utf8 -m unittest packages.core.test_invariants -v
-python tests/dashboard_browser.py --help
-python tests/extension_browser.py
-python packages/agent-example/verify_sdk.py
-python packages/agent-example/verify_codex.py --help
-python scripts/build_release.py --ref v1.0.0 --output dist
-python scripts/smoke_release.py dist
+python tests/pairing_elapsed.py
+python scripts/build_release.py --ref v1.0.1 --fetch-runtime --output dist/1.0.1
+python scripts/smoke_release.py dist/1.0.1
 ```
 
-在已有相应登录状态、支持本机工具的 Agent 宿主内运行真实模型联调。verify_codex.py 需要专用空分身及其环境变量；verify_sdk.py 是官方协议客户端测试。Windows 便携运行时下载、启动器、macOS 原生宿主、三家线上登录页面和商店发布均未作成功声明。在原生 Chromium 允许加载开发者扩展的环境，可执行 extension_browser.py 检查侧栏配对、绑定、请求回应、小窗和打开仪表盘。截图中的多分身夹具与实际工作模式陈述分别标识。项目没有发布到外部仓库或应用商店。
+[默认回归日志](evidence/1.0.1/default-tests.txt) · [领域日志](evidence/1.0.1/core-tests.txt) · [浏览器原生扩展加载诊断](evidence/1.0.1/native-extension.json) · [原生宿主诊断](evidence/1.0.1/native-host.json) · [开发复现指南](DEVELOPMENT.md) · [1.0.0 历史报告](TEST-REPORT-1.0.0.md)

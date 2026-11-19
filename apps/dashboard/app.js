@@ -1,4 +1,6 @@
+import { mountChat, clearChat } from './chat.js';
 import { drawIris, icon } from './graphics.js';
+import { watchPairCode } from './pairing.js';
 import { h, nav, pages, sources, stages, kinds, short, when, badge, button, empty, card, item, eventText, sourceBadge, levels, renderPage } from './views.js';
 const $ = s => document.querySelector(s);
 const dialog = $('#dialog'),
@@ -80,7 +82,15 @@ function namedSelect(name, rows, sel = '') {
 function instanceField(defaultId = '') {
   return field('分身', namedSelect('instance_id', m.instances.map(i => [i.instance_id, i.name]), defaultId || m.instanceId));
 }
+let stopPairWatch = null;
+let displayedPairCode = '';
+function clearPairWatch() {
+  if (stopPairWatch) stopPairWatch();
+  stopPairWatch = null;
+  displayedPairCode = '';
+}
 function modal(title, body, submit = null, ok = '保存', danger = false) {
+  clearPairWatch();
   activeSubmit = submit;
   capturedSecret = '';
   dialogBody.innerHTML = '<div class="card-header"><h2 id="dialog-title">' + h(title)
@@ -92,6 +102,7 @@ function modal(title, body, submit = null, ok = '保存', danger = false) {
   if (!dialog.open) dialog.showModal();else dialog.scrollTop = 0;
 }
 function close() {
+  clearPairWatch();
   dialog.close();
   dialogBody.replaceChildren();
   capturedSecret = '';
@@ -99,6 +110,7 @@ function close() {
 }
 dialog.addEventListener('close', () => {
   if (dialog.open) return;
+  clearPairWatch();
   capturedSecret = '';
   activeSubmit = null;
   dialogBody.replaceChildren();
@@ -116,6 +128,7 @@ function saveHash() {
   history.replaceState(null, '', '#' + p.toString());
 }
 function clearOwner() {
+  clearChat();
   token = '';
   sessionStorage.removeItem('sls-owner');
   stamp = '';
@@ -147,7 +160,7 @@ async function api(path, body = null, auth = true) {
       body: body === null ? undefined : JSON.stringify(body),
       cache: 'no-store',
       credentials: 'omit',
-      signal: AbortSignal.timeout(20000)
+      signal: AbortSignal.timeout(path === 'chat/message' ? 210000 : 20000)
     });
   } catch {
     m.online = false;
@@ -243,6 +256,7 @@ function shell() {
     + '主题">' + icon(m.theme === 'night' ? 'sun' : 'moon', 16) + '</button>';
 }
 function render() {
+  const chatFocus = m.view === 'chat' && document.activeElement?.closest('.chat-workspace') ? document.activeElement : null;
   const focused = document.activeElement?.dataset?.field,
     cursor = document.activeElement?.selectionStart;
   shell();
@@ -255,6 +269,8 @@ function render() {
     + card('plug', '连接本地服务', empty('等待本地服务响应', '在项目目录启动 Start-Windows.cmd，或在其它系统运行 ./start.sh。'));else if (!m.snapshotReady && token && m.view !== 'about') content.innerHTML = offline
     + card('plug', '正在读取主体档案', empty('等待本地数据库响应'));else content.innerHTML = offline + banner
     + renderPage[m.view](m);
+  if ($('#chat-host') && token) mountChat($('#chat-host'), m, api, refresh);
+  if (chatFocus?.isConnected) chatFocus.focus({preventScroll:true});
   if (artOK && $('.hero')) $('.hero').classList.add('art-loaded');
   if (focused) {
     const el = document.querySelector('[data-field="' + CSS.escape(focused) + '"]');
@@ -345,7 +361,7 @@ async function paired(code) {
   await loadAux();
 }
 function pairDialog() {
-  modal('连接本地仪表盘', '<p class="quiet">输入服务启动窗口中的仪表盘配对码。需要新的配对码时，在项目目录运行以下命令。</p><pre>python apps/local-service/server.py --pair</pre>'
+  modal('连接本地仪表盘', '<p class="quiet">输入服务启动窗口中的仪表盘配对码。如已过期，Windows 双击项目目录的 <strong>Reconnect-Windows.cmd</strong>，macOS 或 Linux 运行 <code>sh start.sh --reconnect</code>。启动器会打开已授权的配对页面。</p>'
     + field('一次性配对码', '<input name="code" autocomplete="off" required autofocus>'), async f => {
     await paired(f.code.trim());
     close();
@@ -362,7 +378,7 @@ function setup() {
     + step(2, '创建主体和分身', m.subject ? '当前主体「' + m.subject.name + '」，已登记 ' + m.instances.length
     + ' 个分身。' : '一个逻辑主体可以包含多个独立窗口。', m.subject ? button('make-instance', '添加分身', 'plus') : button('make-subject', '创建主体', 'plus'), m.instances.length > 0)
     + step(3, '安装 Chrome 扩展', observed ? '此主体已收到授权网页观察记录。' : '在 chrome://extensions 开启开发者模式，加载已解压的 apps/extension 目录，使用扩展配对码连接。', button('pair-extension', '生成扩展配对码', 'plug'), observed)
-    + step(4, '连接 SKILL 和 MCP', reportSeen ? '已收到本主体分身通过 MCP 提交的状态报告。' : '将 packages/agent-skill/silicon-life-state 安装到 Agent 的 Skills 目录。用分身凭据配置 MCP 后，由 Agent 自行决定是否调用 report_state。', button('issue', '生成分身连接配置', 'nodes'), reportSeen));
+    + step(4, '连接 SKILL 和 MCP', reportSeen ? '已收到本主体分身通过 MCP 提交的状态报告。' : '将 packages/agent-skill/silicon-life-state 安装到 Agent 的 Skills 目录。用分身凭据配置 MCP 后，由 Agent 自行决定是否调用 report_state。', button('issue', '连接 Agent 宿主', 'nodes'), reportSeen));
 }
 function newSubject() {
   if (!token) {
@@ -402,36 +418,39 @@ function secretBox(title, note, value) {
     + button('copy', '复制', 'copy') + button('close', '完成') + '</div>');
   capturedSecret = value;
 }
-function issue(instanceId) {
+function showExtensionCode(code, details) {
+  modal('扩展配对码', '<p>在浏览器插件的配对框中输入此码。</p>'
+    + '<pre data-pair-code tabindex="0"></pre><p><strong data-pair-countdown role="timer" aria-label="配对码剩余有效时间"></strong></p>'
+    + '<p data-pair-state role="status"></p><div class="actions">'
+    + button('copy', '复制配对码', 'copy') + button('regenerate-pair-code', '重新生成配对码', 'plug')
+    + button('close', '完成') + '</div>');
+  displayedPairCode = code;
+  stopPairWatch = watchPairCode({
+    node:dialogBody, code, initial:details,
+    status:value => api('pair/status', {code:value}),
+    setCopyValue:value => { capturedSecret = value; }
+  });
+}
+async function extensionPairEntry(code = '') {
+  await go('settings');
+  if (!token) {
+    pairDialog();
+    return;
+  }
+  if (code) {
+    const details = await api('pair/status', {code});
+    if (details.target === 'extension') {
+      showExtensionCode(code, details);
+      return;
+    }
+  }
+  modal('获取插件配对码', '<p>准备好插件后点击下方按钮。配对码有效期从生成时开始。</p>'
+    + '<div class="actions">' + button('pair-extension', '重新生成配对码', 'plug') + button('close', '取消') + '</div>');
+}
+async function issue(instanceId) {
   if (!requireInstance()) return;
-  const key = id();
-  modal('生成分身连接配置', instanceField(instanceId)
-    + field('连接方式', namedSelect('transport', [
-      ['stdio', '本机 stdio（推荐）'],
-      ['http', 'Streamable HTTP']
-    ], 'stdio'))
-    + '<p class="note">每个分身同时使用一个专用令牌。若该窗口已有凭据，请在设置中主动撤销后再签发。连接配置只应保存到已授权的本机 Agent。</p><p class="quiet">stdio 自动填写本机程序与适配器路径。支持 Streamable HTTP 的宿主也可以选择直接连接本地服务。</p>', async f => {
-    const r = await write('credentials', {
-      subject_id: m.subjectId,
-      instance_id: f.instance_id
-    }, key);
-    const url = location.origin + '/mcp';
-    const useStdio = f.transport === 'stdio' && typeof r.stdio?.command === 'string' && Array.isArray(r.stdio.args);
-    const connection = useStdio ? {
-      command: r.stdio.command,
-      args: r.stdio.args,
-      env: {SILICON_AGENT_TOKEN: r.token, SILICON_MCP_URL: url}
-    } : {
-      url,
-      headers: {Authorization: 'Bearer ' + r.token}
-    };
-    const config = {mcpServers: {'silicon-life-state': connection}};
-    const note = useStdio ? 'stdio 已填入当前安装路径和分身凭据。'
-      : f.transport === 'http' ? '已生成本机 HTTP 地址和认证请求头。'
-      : '当前服务未提供 stdio 安装路径，已生成可用的本机 HTTP 配置。';
-    secretBox('MCP 分身凭据', note + '复制到宿主的本机私有配置。凭据仅在这里显示一次。', JSON.stringify(config, null, 2));
-    if (m.view === 'settings') await loadAux();
-  }, '签发凭据');
+  const {hostWizard} = await import('./wizard.js');
+  hostWizard({modal, api, toast, instanceField, subjectId: m.subjectId, instanceId});
 }
 function eventDialog(value) {
   const pools = [m.events, m.memory.proposals, m.memory.common, m.memory.disputed, m.memory.decisions, m.instances.map(i => i.state).filter(Boolean), ...m.requests.map(r => r.history)];
@@ -615,6 +634,7 @@ function deleteDialog(scope) {
     if (scope === 'session') args.id = f.session_id;
     else if (scope === 'subject') args.id = m.subjectId;
     await write('delete', args, key);
+    clearChat(scope, args.id);
     close();
     if (scope !== 'session') {
       m.subjectId = '';
@@ -712,11 +732,11 @@ async function act(a, v) {
       issue(v);
       break;
     case 'pair-extension':
+    case 'regenerate-pair-code':
       {
-        const p = await write('pair/code', {
-          target: 'extension'
-        });
-        secretBox('扩展配对码', '在扩展侧边栏中输入。有效期 ' + Math.ceil((p.expires_in || 600) / 60) + ' 分钟，限使用一次。', p.code);
+        const previous = a === 'regenerate-pair-code' ? displayedPairCode : '';
+        const p = await write('pair/code', {target: 'extension', ...(previous ? {replaces:previous} : {})});
+        showExtensionCode(p.code, p);
         break;
       }
     case 'copy':
@@ -759,6 +779,7 @@ async function act(a, v) {
           m.instanceId = '';
           await refresh(true);
           await loadAux();
+          clearChat();
           toast('数据库已恢复');
         }, '确认恢复', true);
         break;
@@ -870,6 +891,10 @@ document.addEventListener('change', async e => {
   }
 });
 let resizeTimer;
+window.addEventListener('hashchange', () => {
+  const link = new URLSearchParams(location.hash.slice(1));
+  if (link.get('action') === 'pair-extension') extensionPairEntry().catch(e => modalError(e.message));
+});
 window.addEventListener('resize', () => {
   if (!artOK) {
     clearTimeout(resizeTimer);
@@ -881,6 +906,7 @@ document.addEventListener('keydown', e => {
 });
 async function boot() {
   const pairing = initial.get('pair');
+  const wantsExtension = initial.get('action') === 'pair-extension';
   saveHash();
   render();
   if (pairing) {
@@ -889,11 +915,16 @@ async function boot() {
     } catch (e) {
       m.problem = e.message;
       await refresh(true);
-      toast(e.message);
+      if (!token) pairDialog();
+      modalError(e.message);
     }
   } else {
     await refresh(true);
     await loadAux();
+  }
+  if (wantsExtension && (!pairing || token)) {
+    try { await extensionPairEntry(initial.get('extension_code') || ''); }
+    catch (e) { modalError(e.message); }
   }
 }
 await boot();

@@ -1,0 +1,11 @@
+{
+  "build": "1.0.1 development build before the receipt-preserving tool-limit fix",
+  "model": "Qwen3-1.7B Q4_K_M",
+  "weights_sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897",
+  "browser": "Chromium 156.0.8078.79",
+  "tool_choice": "auto",
+  "prompt": "Please use the available report_state tool to save one short note on your current operational state. Choose the note yourself. You may decline by text if you prefer. /no_think",
+  "observed_api_error": "CHAT_LIMIT",
+  "observed_message": "模型连续申请工具调用，已达到本轮上限。已保存的事件可在仪表盘查看，请重新连接。",
+  "independent_database_check_for_this_attempt": "NOT_RUN"
+}

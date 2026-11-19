@@ -1,0 +1,12 @@
+{
+  "case": "slow-first-extension-pairing",
+  "elapsed_seconds": 602.0,
+  "clock": "unmodified real elapsed time",
+  "service_restarts": 0,
+  "expired_original": "PAIR_EXPIRED",
+  "anonymous_code_issuance": "denied",
+  "owner_generated_new_code": true,
+  "new_extension_read": "PASS",
+  "second_exchange": "PAIR_USED",
+  "result": "PASS"
+}

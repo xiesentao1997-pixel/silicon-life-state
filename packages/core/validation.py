@@ -105,6 +105,7 @@ TOOLS = {
 ADMIN = {
     'list_subjects': (set(),set()), 'list_agents': (set(),set()), 'snapshot': ({'subject_id'},set()), 'export': (set(),set()), 'verify': (set(),set()),
     'create_subject': ({'name'},{'name'}), 'create_instance': ({'subject_id','name'},{'subject_id','name'}),
+    'connection_grant': ({'instance_id'},{'instance_id'}),
     'issue_agent': ({'subject_id','instance_id'},set()), 'revoke_agent': ({'grant_id'},{'grant_id'}),
     'set_level': ({'subject_id','level'},{'subject_id','level'}),
     'observe': ({'instance_id','text','adapter','adapter_version','interaction_reference'},{'instance_id','text'}),

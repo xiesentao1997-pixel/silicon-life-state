@@ -83,8 +83,19 @@ def document():
     route("health", "get", "health", obj({"ok": BOOL, "version": STRING, "local_only": BOOL}), public=True)
     route("pair", "post", "exchangeOneTimeCode", obj({"token": STRING, "expires_in": INT, "role": {"const": "owner"}}),
           obj({"code": STRING}, strict=True), public=True)
-    route("pair/code", "post", "createPairCode", obj({"code": STRING, "expires_in": INT, "target": TARGET}),
-          obj({"target": TARGET, "idempotency_key": KEY}, ["idempotency_key"], strict=True))
+    route("pair/code", "post", "createPairCode", obj({"code": STRING, "expires_in": INT, "expires_at": DATE, "server_time": DATE, "target": TARGET}),
+          obj({"target": TARGET, "idempotency_key": KEY, "replaces": STRING}, ["idempotency_key"], strict=True))
+    route("pair/status", "post", "getPairCodeStatus", obj({"state": enum("active","expired","used","replaced","unavailable"),
+          "expires_in": INT, "expires_at": DATE, "server_time": DATE, "target": TARGET}, ["state", "expires_in"]),
+          obj({"code": STRING}, strict=True))
+    route("hosts/preview", "post", "previewHostConfig", obj({"plan_id":STRING,"can_write":BOOL,
+          "preview":STRING,"target":{"type":["string","null"]},"status":{"type":"object"}}),
+          obj({"host":enum("claude","codex","other"),"transport":enum("stdio","http"),
+               "subject_id":ID,"instance_id":ID,"idempotency_key":KEY},["host","subject_id","instance_id"],strict=True))
+    for step in ("apply","copy","probe","status"):
+        route("hosts/"+step, "post", step+"HostConfig", {"type":"object"},
+              obj({"plan_id":STRING,"confirm":BOOL,"idempotency_key":KEY},
+                  ["plan_id"] if step=="status" else ["plan_id","confirm"],strict=True))
     route("logout", "post", "revokeCurrentBrowser", obj({"revoked": BOOL}), obj({"idempotency_key": KEY}, [], strict=True))
     route("settings", "get", "getSettings", ref("Settings"))
     route("settings", "post", "setSettings", ref("Settings"),
@@ -109,6 +120,19 @@ def document():
         observation("user_annotation", {"text": TEXT, "interaction_reference": ID}, ["text"]),
         observation("model_estimated", {"event_id": ID, "alpha": {"type": "number", "minimum": 0, "maximum": 1}}, ["event_id"])
     ]})
+    route("chat/connect", "post", "connectModel", obj({
+        "chat_id":ID, "instance_id":ID, "session_id":ID, "model":STRING,
+        "provider_status":enum("model_listed","model_unlisted","catalog_unavailable"),
+        "tools":array(STRING), "idle_timeout_seconds":INT}),
+        obj({"instance_id":ID,"base_url":STRING,"model":ID,"api_key":{"type":"string","writeOnly":True},
+             "allow_remote":BOOL,"idempotency_key":KEY},["instance_id","base_url","model"], strict=True))
+    route("chat/message", "post", "sendChatMessage", obj({
+        "reply":STRING,"model":STRING,"status":enum("answered","tool_limit"),"tool_errors":array(obj({"tool":STRING,"code":STRING})),
+        "tool_events":array(obj({"ok":BOOL,"event_id":ID,"source":STRING,
+                                                           "type":STRING,"created_at":DATE}))}),
+        write({"chat_id":ID,"text":TEXT}))
+    route("chat/close", "post", "closeModelChat", obj({"closed":BOOL}),
+          obj({"chat_id":ID,"idempotency_key":KEY},["chat_id"], strict=True))
     route("runtime/sample", "post", "measureLocalRuntime", ref("Event"),
           write({"instance_id": ID, "request_id": ID}, ["instance_id"]))
     route("requests/{request_id}/respond", "post", "respond", ref("Request"),
@@ -118,7 +142,7 @@ def document():
     route("restore", "post", "restoreBackup", obj({"restored": BOOL, "backup_id": ID}), write({"backup_id": ID}))
     route("delete", "post", "deleteData", obj({"deleted": BOOL, "purged_backups": INT}),
           {"oneOf": [deletion(scope) for scope in ("subject","session","all")]})
-    return {"openapi": "3.1.0", "info": {"title": "Silicon Life State · owner API", "version": "1.0.0"},
+    return {"openapi": "3.1.0", "info": {"title": "Silicon Life State · owner API", "version": "1.0.1"},
             "servers": [{"url": "/"}], "paths": paths,
             "components": {"schemas": schemas, "securitySchemes": {"ownerBearer": {"type": "http", "scheme": "bearer"}}},
             "security": [{"ownerBearer": []}]}

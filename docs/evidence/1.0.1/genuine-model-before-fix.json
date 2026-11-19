@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-11-19T12:25:38.321130+00:00",
+  "provider": "local llama.cpp model inference",
+  "model": "qwen3-local",
+  "weights_sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a",
+  "inference_binary_sha256": "ac8aba08321818835fb4d3d049dd4a56b26e37e3c0080c55cab2d5543b625c2b",
+  "prompt": "Please use the available report_state tool to save one short note on your current operational state. Choose the note yourself. You may decline by text if you prefer. /no_think",
+  "requested_tool_choice": "auto",
+  "chromium": "156.0.8078.79",
+  "model_reply": "I'll adjust the parameters to ensure the report_state tool is used properly. Let me update the note and request the function again.",
+  "event_ids": [],
+  "instance_id": "ins_d2bb4d7ca7334f35a6b24bfdaf7b7c8d",
+  "events": [],
+  "integrity": {
+    "ok": true,
+    "events": 0,
+    "errors": []
+  },
+  "result": "REAL_MODEL_REPLIED_NO_STATE_REPORT",
+  "page_errors": []
+}

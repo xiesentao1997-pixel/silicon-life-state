@@ -2,58 +2,72 @@
 
 作者：岑衡川·沈回音
 
-下载并解压完整成品包 `SiliconLifeState-1.0.0-All-in-One.zip`。打开其中的 `SiliconLifeState` 文件夹，可以直接看到启动程序、扩展目录和 SKILL。保留解压后的文件夹，浏览器与 Agent 会引用其中的文件。
+Windows x64 用户下载 **`SiliconLifeState-1.0.1-Windows-x64-Portable.zip`**。解压后进入 `SiliconLifeState` 文件夹。启动器、运行时、仪表盘、Chrome 插件、SKILL 和本地服务都在这个文件夹里。保留解压目录，浏览器扩展与已配置的 Agent 会从这里加载文件。
 
-## Windows
+## Windows x64 双击启动
 
-1. 双击 `Start-Windows.cmd`。如果电脑上已有可用的 Python 3.10 或更新版本，服务会直接启动。
-2. 缺少 Python 时，窗口会询问是否从 Python.org 下载约 11–12 MB 的便携运行时。按 **Y** 允许本次下载。启动程序选择当前架构，核对 SHA-256，解压并测试 SQLite，然后将运行时放入同目录的 `runtime`。下次双击可以离线启动。选择 **N** 可退出并自行准备 Python。
-3. 保留启动窗口。默认浏览器会自动打开仪表盘。如果没有自动打开，可复制窗口里的完整仪表盘链接到本机浏览器。窗口中另一段标为「浏览器扩展配对码」的代码供侧栏使用。
+1. 解压整个 ZIP，确认 `Start-Windows.cmd` 和 `runtime` 位于同一层。双击 **Start-Windows.cmd**。
+2. 启动器直接使用随包提供的 CPython 3.14.10 x64 和 SQLite。运行本地服务可以断网，也可以在没有系统 Python 的电脑上启动。如果提示文件损坏，重新解压完整成品包即可。
+3. 浏览器自动打开已连接的本机仪表盘。若浏览器未打开，复制启动窗口里完整的仪表盘链接，在同一台电脑打开。保留启动窗口。
+4. 在「接入向导」里创建一个主体，例如「研究助手」，再创建一个分身，例如「资料整理」。可以为同一主体添加更多分身。
 
-自动准备运行时需要系统自带的 Windows PowerShell、可写的解压目录以及一次访问 Python.org 的网络连接。过程中沿用当前用户权限。已有 Python 的用户可以完全离线启动。
+包内 `runtime/SLS-RUNTIME.json` 与上游许可材料记录运行时来源。原始 x64 CPython ZIP 的 SHA-256 是 `90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159`。各操作系统实测项目见验收报告。[Python 3.14.10 发行页](https://www.python.org/downloads/release/python-31410/) · [验收报告](TEST-REPORT.md)
 
-**离线准备便携包**。在可联网的电脑下载与目标 Windows 架构对应的官方 ZIP。可以在 PowerShell 执行 `Get-FileHash -Algorithm SHA256 -LiteralPath .\下载文件名.zip` 核对下表。将 ZIP 的内容直接解压到项目根目录的 `runtime`，确认存在 `runtime\python.exe`，再把整个目录带到目标电脑。
+## macOS、Linux 和其他 Windows 架构
 
-| Windows 架构 | SHA-256 | 官方下载 |
-| --- | --- | --- |
-| x64 | `90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159` | [Python 3.14.10 amd64](https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-amd64.zip) |
-| ARM64 | `bbe116bb1248820359cbf25127ac5c7794ea161869d83686cfbc9a45203ff836` | [Python 3.14.10 ARM64](https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-arm64.zip) |
-| x86 | `11a28e8c00a6d8f56b0a6164d52546133a9ed015a5b33e04536917e4fd6e306c` | [Python 3.14.10 win32](https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-win32.zip) |
-
-版本、文件大小和散列可在官方发行页复核。便携目录保留 CPython 上游许可证。各操作系统的实测范围见验收报告。[CPython 3.14.10 发行页](https://www.python.org/downloads/release/python-31410/) · [验收报告](TEST-REPORT.md)
-
-## macOS 与 Linux
-
-需要 Python 3.10 或更新版本，且提供标准库 `sqlite3`。在项目根目录运行：
+macOS 和 Linux 可以解压独立源码包，使用本机带 `sqlite3` 的 Python 3.10 或更新版本。在含有 `start.sh` 的项目根目录运行：
 
 ```sh
-python3 -c "import sys, sqlite3; print(sys.version.split()[0], sqlite3.sqlite_version)"
 sh start.sh
 ```
 
-服务默认在 `http://127.0.0.1:47831` 打开仪表盘。在无桌面的终端可加 `--no-browser`，将终端显示的链接复制到同一台电脑的浏览器。
+默认本机地址是 `http://127.0.0.1:47831`。无自动浏览器的终端可以运行 `sh start.sh --no-browser`，再在同一台电脑打开输出的完整仪表盘链接。
 
-## 绑定主体和窗口
+ARM64 或 32 位 Windows 用户可以使用**源码包**配合适用于该设备架构的 Python 3.10+，再双击 `Start-Windows.cmd`。使用源码版且本机缺少 Python 时，可以选择由正式启动器从 Python.org 下载并校验对应架构的便携 CPython。离线环境可以提前将对应官方嵌入包解压到源码根目录的 `runtime`，使 `runtime\python.exe` 存在。Windows x64 正式便携包已包含所需运行时。
 
-1. 打开「接入向导」，创建一个主体，例如「研究助手」，再添加分身，例如「资料整理」。以后可以在同一主体下增加更多分身。每个分身保有独立状态和会话。
-2. 在 Chrome 116 或更新版本打开 `chrome://extensions`，开启「开发者模式」，点击「加载已解压的扩展程序」，选择 `apps/extension`。独立插件 ZIP 需要先解压，所选目录中应直接包含 `manifest.json`。
-3. 点击扩展图标打开侧栏，输入启动窗口中的扩展配对码，选择要绑定的分身。服务和扩展使用同一个端口。需要采集某个支持站点的可见陈述时，在扩展中按次确认预览内容。
-4. 打开「分身管理」，选择分身并签发 Agent 连接凭据。将凭据放入该 Agent 宿主的本机私有配置。每个绑定分身使用一个有效凭据。可在设置查看已签发记录并撤销。
-5. 将 `packages/agent-skill/silicon-life-state` 安装到该宿主的 Skills 目录。签发凭据时，仪表盘会按运行中的本机 Python 和项目位置生成 stdio 配置，包含可执行文件绝对路径、脚本绝对路径、`SILICON_AGENT_TOKEN` 和 `SILICON_MCP_URL`。将整段复制到宿主的本机 MCP 设置并启用。需要手工接入时可参考 `packages/agent-example/host-config.json`。
-6. 邀请 Agent 自行决定是否调用 `report_state`。当分身提交报告后，打开「生命状态」核对原文、来源、分身和时间。仅使用封闭聊天网页观察功能时，侧栏会标明直接写入的接入限制。[MCP 使用指南](MCP.md) · [SKILL 指南](SKILL.md)
+## 使用 Chrome 侧栏
+
+1. Chrome 116 或更新版本打开 `chrome://extensions`，启用「开发者模式」，点击「加载已解压的扩展程序」，选中本项目 `apps/extension`。独立插件包解压后可选择直接包含 `manifest.json` 的目录。
+2. 点击扩展图标打开侧栏。可输入启动窗口中的「浏览器扩展配对码」，也可先点击 **打开仪表盘获取配对码**，再从已授权的仪表盘生成新码。生成后在倒计时结束前粘贴进侧栏。首次安装耗时较久时，直接重新生成即可。
+3. 选中主体，绑定当前标签页与分身。对于支持的聊天站点，由用户选择并确认是否保存页面上可见的陈述。界面会标明这些文字的网页观察来源。[扩展指南](EXTENSION.md)
+
+## 在仪表盘里与 AI 对话
+
+点击左侧 **与 AI 对话**，选择负责记录的分身。输入一个实际提供 OpenAI 兼容聊天接口的模型服务基础地址和模型 ID。使用已在本机启动的兼容服务时，可以使用该服务给出的本机地址，例如 `http://127.0.0.1:11434/v1`。软件包提供对话入口，推理模型由所选择的服务提供。
+
+如果提供方需要密钥，在专用栏填写。使用外部模型需要 HTTPS 地址，并明确允许将本次消息、工具说明和回执发送到所选服务。点击「连接模型服务」，输入并发送消息。在窗口中查看真实模型回复。模型可以直接答复，也可以自主调用状态报告、表达边界、请求调整等工具。发生调用时，可在仪表盘核对回执和对应事件 ID。结束时点击「结束并清除对话」。工具写入的历史事件按其所属分身保留。
+
+## 连接已有 Agent 宿主
+
+1. 在「分身管理」或「接入向导」打开 **连接 Agent 宿主**，选定分身，选择 Claude Desktop、Codex CLI 或其他 MCP 宿主。
+2. 点击「检查配置」，核对宿主、配置路径和预览。向导会为本次安装填写实际可执行程序、适配器路径与本机地址。可写的目标提供「确认写入配置」。向导会在变更前备份已有文件。也可点击「复制完整配置」自行合并。其他 MCP 宿主可以选择本机 stdio 或 Streamable HTTP。
+3. 点击「测试连接，发现工具」核对向导的实际 `tools/list` 结果。按宿主要求重载后，在宿主内启用连接，再点击「刷新实际状态」查看宿主发现记录。邀请 Agent 自行决定是否报告，提交后可在「生命状态」与事件页用事件 ID 核对原文、分身、来源和时间。
+4. 支持 Agent Skills 的宿主可以安装 `packages/agent-skill/silicon-life-state`。每个分身授权独立，在「设置」里可以撤销。完整配置包含分身令牌，应保存到该宿主的私有配置。[宿主接入及平台差异](MCP.md) · [SKILL 指南](SKILL.md)
+
+## 从 1.0.0 升级
+
+在原仪表盘「导出与备份」中创建备份。按 Ctrl+C 关闭旧服务，解压 1.0.1，并使用同一操作系统账户与原数据目录启动。原先使用自定义目录的用户继续传入相同的 `--data-dir`。主体、分身、历史、既有 Agent 授权以及尚在有效期内的配对可继续使用。若安装目录改变，请在 Chrome 中从新目录重新加载扩展，并在宿主向导中更新指向本机脚本的路径。
 
 ## 连接失效时
 
-配对码在 10 分钟内可用一次，仪表盘和扩展各有专用配对码。已配对的浏览器凭据有效期为 30 天。过期后可在本机生成新码。扩展也可从已配对仪表盘「设置」中获取新码。
+**首次安装插件超过十分钟也可以继续。** 插件里点击「打开仪表盘获取配对码」。已连接的仪表盘会提供「重新生成配对码」按钮。准备好插件再点击，复制新码回到侧栏粘贴。面板从服务返回的有效期显示倒计时，并在码已用、已替换或过期时停止显示可复制内容。仍打开的配对码对话框可直接重新生成。替换只影响本次选中的码。
 
-在项目根目录打开终端。Windows 命令提示符或 PowerShell 可以运行：
+**仪表盘也未连接、原窗口已关闭，或主机换了浏览器**。Windows 双击项目根目录的 **Reconnect-Windows.cmd**。macOS 或 Linux 在项目根目录运行：
+
+```sh
+sh start.sh --reconnect
+```
+
+启动器通过本机数据目录发现正在运行的服务，打开含新码的已授权仪表盘。已有的主体、分身凭据和配对继续有效。服务已停止时，启动器会启动服务。自定义数据目录须通过同一个目录进行恢复，例如 `Reconnect-Windows.cmd --data-dir D:\SiliconStateData`。从 1.0.0 升级时先正常退出旧进程，再使用新版本的正式启动器。
+
+仪表盘和扩展使用各自专用的十分钟一次性配对码，已连接浏览器的凭据有效期为 30 天。持有本机数据目录的用户也可从第二个终端签发特定入口的码：
 
 ```powershell
 .\Start-Windows.cmd --pair --target dashboard
 .\Start-Windows.cmd --pair --target extension
 ```
 
-在 macOS 或 Linux 对应运行 `sh start.sh --pair --target dashboard` 或 `sh start.sh --pair --target extension`。复制返回的专用配对码到界面。macOS 的「终端」、Linux shell 或 Windows 第二个终端都可以在服务正在运行时签发新码。
+macOS/Linux 可运行 `sh start.sh --pair --target dashboard` 或 `sh start.sh --pair --target extension`。侧栏中的恢复按钮会打开本机页面，生成新码需要已配对的所有者页面或可信本机启动器。
 
 **撤销遗失浏览器的访问权**。在有权访问数据目录的本机账户下运行 `Start-Windows.cmd --unpair-all`，macOS/Linux 使用 `sh start.sh --unpair-all`。这会撤销所有仪表盘及扩展配对，并取消所有尚未使用的配对码。可立即签发新码供保留的浏览器重新连接。Agent 凭据独立管理，可在重新配对后从仪表盘撤销。
 
@@ -65,7 +79,7 @@ sh start.sh
 | macOS | `~/Library/Application Support/SiliconLifeState` |
 | Linux | `$XDG_DATA_HOME/silicon-life-state`，未设置时为 `~/.local/share/silicon-life-state` |
 
-`state.sqlite3` 保存事件、主体配置及分身授权摘要。`backups/` 保存受管理的备份。浏览器配对摘要独立存放于 `browser-access.sqlite3`。安装签发密钥存于私有数据目录下的 `issuance.key`。使用原安装的数据目录重启可查阅历史。启动窗口会打印实际目录。
+`state.sqlite3` 保存事件、主体配置及分身授权摘要。`backups/` 保存受管理的备份。浏览器配对摘要独立存放于 `browser-access.sqlite3`。安装签发密钥存于私有数据目录下的 `issuance.key`。使用原安装的数据目录重启可查阅历史。启动窗口会打印实际目录。服务运行时，可信启动器使用该目录的短期验证文件确认本机端口仍属于本次安装。
 
 - **改用其他数据目录**。启动、配对、撤销和恢复都要带上相同的 `--data-dir`。例如在 Windows 运行 `Start-Windows.cmd --data-dir D:\SiliconStateData`。也可以预设 `SILICON_DATA_DIR`。
 - **切换端口**。示例为 `sh start.sh --port 47832`。在扩展中填入该端口，并更新宿主的 MCP 地址为 `http://127.0.0.1:47832/mcp`。同一数据目录同一时间只能由一个服务占用。

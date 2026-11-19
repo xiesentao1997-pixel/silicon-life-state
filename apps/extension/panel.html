@@ -3,8 +3,11 @@
 <body><header><img src="icons/orbit48.png" alt="" width="33" height="33"><div><strong>硅基生命状态</strong><small>Silicon Life State</small></div><span class="pill" id="connection" role="status">连接中</span></header>
 <main>
 <div id="feedback" role="status" hidden></div>
-<section id="pair-card" hidden><h1>连接本地服务</h1><p>启动本地服务，在仪表盘的「设置」获取一次性插件配对码。</p>
-<form id="pair-form"><label>插件配对码<input id="code" placeholder="一次性配对码" required autocomplete="off" type="password" spellcheck="false"></label><details><summary>本地服务端口</summary><input id="port" aria-label="本地服务端口" type="number" min="1" max="65535" value="47831" required></details><button class="primary">配对并连接</button></form></section>
+<section id="pair-card" hidden><h1>连接本地服务</h1><p>使用仪表盘提供的一次性插件配对码。已有新码可直接粘贴。</p>
+<button type="button" id="recover-pair">打开仪表盘获取配对码</button>
+<p class="muted">每个配对码可在签发后 10 分钟内使用一次。</p>
+<form id="pair-form"><label>插件配对码<input id="code" placeholder="一次性配对码" required autocomplete="off" type="password" spellcheck="false"></label><details><summary>本地服务端口</summary><input id="port" aria-label="本地服务端口" type="number" min="1" max="65535" value="47831" required></details><button class="primary">配对并连接</button></form>
+<details><summary>仪表盘也需要配对？</summary><p>Windows 双击安装目录中的 <code>Reconnect-Windows.cmd</code>。macOS 或 Linux 在该目录运行 <code>sh start.sh --reconnect</code>。</p></details></section>
 <div id="connected" hidden>
 <section class="hero"><div class="eyebrow" id="subject-name">当前分身</div><h1 id="instance-name">选择窗口绑定</h1><blockquote id="state-text">绑定后显示这个分身的自主陈述。</blockquote><div class="muted" id="state-meta"></div><div class="tools"><button id="open-dashboard" class="primary">完整仪表盘 ↗</button><button id="open-mini">小窗口 ↗</button></div></section>
 <p class="mode" id="mode">网页观察模式：尚未建立 AI 直接写入连接。</p>

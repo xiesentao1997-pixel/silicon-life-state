@@ -1,0 +1,26 @@
+{
+  "result": "PASS",
+  "utc": "2026-11-19T12:30:14.333979+00:00",
+  "upgrade": {
+    "from_version": "1.0.0",
+    "to_version": "1.0.1",
+    "unchanged_raw_events": 7,
+    "unchanged_event_map_sha256": "750a6c17f17ab70e5410192506bb2b26c225babbedac937e910eb98bfc65f414",
+    "same_subjects_instances_sessions": true,
+    "same_requests_memory_stats": true,
+    "old_owner_and_agent_credentials_work": true,
+    "pending_extension_code_single_use": true,
+    "existing_managed_backup_listed": true,
+    "new_event_continues_old_chain": true
+  },
+  "historical_agent": {
+    "from_version": "1.0.0",
+    "to_version": "1.0.1",
+    "event_id": "evt_355d9c1afb2949f0908679ededc8278c",
+    "event_hash": "0a67e258fa415302d99763bd2696fb07d809d45817d81c63a373a986645ea0ec",
+    "verbatim_text_matches_release_receipt": true,
+    "chain_verified": true,
+    "copied_credentials": false,
+    "source_database_modified": false
+  }
+}

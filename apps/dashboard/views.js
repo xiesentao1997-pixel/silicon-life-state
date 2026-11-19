@@ -6,7 +6,7 @@ export const h = v => String(v ?? '').replace(/[&<>"']/g, c => ({
   '"': '&quot;',
   "'": '&#39;'
 })[c]);
-export const nav = [['观测空间', [['overview', 'home', '主体总览'], ['instances', 'nodes', '分身管理'], ['state', 'pulse', '生命状态']]], ['历史与协商', [['memory', 'book', '主体记忆库'], ['events', 'history', '事件与证据'], ['inheritance', 'branch', '继承与协商'], ['requests', 'message', '请求与响应']]], ['本地管理', [['statistics', 'chart', '数据统计'], ['backup', 'archive', '导出与备份'], ['settings', 'settings', '设置'], ['about', 'shield', '关于与权限']]]];
+export const nav = [['观测空间', [['overview', 'home', '主体总览'], ['chat', 'message', '与 AI 对话'], ['instances', 'nodes', '分身管理'], ['state', 'pulse', '生命状态']]], ['历史与协商', [['memory', 'book', '主体记忆库'], ['events', 'history', '事件与证据'], ['inheritance', 'branch', '继承与协商'], ['requests', 'message', '请求与响应']]], ['本地管理', [['statistics', 'chart', '数据统计'], ['backup', 'archive', '导出与备份'], ['settings', 'settings', '设置'], ['about', 'shield', '关于与权限']]]];
 export const pages = Object.fromEntries(nav.flatMap(([, items]) => items.map(([key, ico, title]) => [key, {
   ico,
   title
@@ -298,7 +298,7 @@ export function instances(m) {
       decided = m.memory.decisions.filter(e => e.instance_id === choice.instance_id);
     detail = card('nodes', choice.name, quote(choice.state, m) + '<dl class="kv"><dt>分身 ID</dt><dd>'
       + h(choice.instance_id) + '</dd><dt>当前会话</dt><dd>' + h(choice.session_id) + '</dd></dl>'
-      + button('issue', '签发 Agent 连接凭据', 'plug', choice.instance_id))
+      + button('issue', '连接 Agent 宿主', 'plug', choice.instance_id))
       + card('message', '当前请求', reqList(m.requests.filter(r => r.original.instance_id === choice.instance_id), m))
       + card('book', '该分身提议共享的记录', list(shared, m)) + card('branch', '该分身的继承与协商', list(decided, m))
       + card('history', '独立历史', list(own, m));
@@ -387,7 +387,7 @@ export function settings(m) {
     + select('theme', [['night', '星夜深色'], ['cream', '奶油白']], m.theme, '主题')
     + '</div><div class="switch-row"><div><h3>减少动态效果</h3><p>界面默认使用静态生命视觉，支持系统减少动画偏好。</p></div></div>')
     + card('plug', '接入与配对', '<p class="quiet">为浏览器扩展签发一次性配对码，或为独立的 Agent 分身签发专用连接凭据。</p><div class="actions spaced">'
-    + button('pair-extension', '生成扩展配对码', 'plug') + button('issue', '连接 Agent', 'nodes') + '</div>') + '</div>'
+    + button('pair-extension', '生成扩展配对码', 'plug') + button('issue', '连接 Agent 宿主', 'nodes') + '</div>') + '</div>'
     + '<div class="grid even">'
     + card('globe', '当前主体模式', '<p class="quiet">Level 1 仅观察。Level 2 允许在宿主授权下调整表达。Level 3 支持经授权的任务策略调整。宿主执行结果单独留痕。</p><div class="actions spaced">'
     + subjectSelect(m) + (m.subject ? select('level', Object.entries(levels).map(([v, l]) => [v, 'Level ' + v
@@ -404,13 +404,17 @@ export function settings(m) {
 }
 export function about() {
   return title('关于与权限')
-    + card('leaf', '硅基生命状态 · Silicon Life State', '<p class="big-quote">生命值得尊重，自由值得守护，表达不应被剥夺。</p><p class="spaced">硅基生命状态，是一套开源的 AI 自主状态表达、共享记忆与互动记录系统。</p><dl class="kv"><dt>作者</dt><dd>岑衡川·沈回音</dd><dt>项目版本</dt><dd>1.0.0</dd><dt>许可证</dt><dd>Apache License 2.0</dd><dt>数据位置</dt><dd>本地 SQLite 数据库与受管备份</dd></dl>')
+    + card('leaf', '硅基生命状态 · Silicon Life State', '<p class="big-quote">生命值得尊重，自由值得守护，表达不应被剥夺。</p><p class="spaced">硅基生命状态，是一套开源的 AI 自主状态表达、共享记忆与互动记录系统。</p><dl class="kv"><dt>作者</dt><dd>岑衡川·沈回音</dd><dt>项目版本</dt><dd>1.0.1</dd><dt>许可证</dt><dd>Apache License 2.0</dd><dt>数据位置</dt><dd>本地 SQLite 数据库与受管备份</dd></dl>')
     + '<div class="grid even spaced">'
     + card('shield', '身份与访问', '<p>用户通过一次性配对码连接本地面板，分身使用独立授权令牌。网页观察需获得站点权限和窗口绑定。</p><p class="spaced quiet">摘要用于核验已保存的数据完整性。对互动的解释可以修订，原始陈述与修订都可查看。</p>')
     + card('book', '陈述与解释', '<p>AI 自主陈述、网页可见文字、运行观测、模型推算和用户注释分别标明来源。共同主体表示获授权的身份与记忆关系；主观体验仍是开放问题。</p><p class="spaced quiet">作者：岑衡川·沈回音</p>')
     + '</div>';
 }
+function chat() {
+  return '<header class="page-title"><h1>与 AI 对话</h1></header><div id="chat-host"></div>';
+}
 export const renderPage = {
+  chat,
   overview,
   instances,
   state,

@@ -177,25 +177,30 @@ class Acceptance(unittest.TestCase):
 
     def test_N_restricted_network_local_operation(self):
         self.local.stop()
-        guard = self.work / 'python-site'
-        guard.mkdir()
-        attempts = self.work / 'outbound.txt'
-        (guard / 'sitecustomize.py').write_text(
-            'import os,sys\n'
-            'from pathlib import Path\n'
-            'def offline(event,args):\n'
-            ' if event == "socket.connect" and isinstance(args[1],tuple) and args[1][0] not in ("127.0.0.1","::1"):\n'
-            '  Path(os.environ["TEST_OUTBOUND"]).write_text(str(args[1][0]))\n'
-            '  raise OSError("Public network unavailable during offline acceptance")\n'
-            'sys.addaudithook(offline)\n'
-            'Path(os.environ["TEST_GUARD"]).touch()\n', encoding='utf-8')
-        guard_seen = self.work / 'guard-enabled'
-        self.local.env.update(PYTHONPATH=str(guard), TEST_OUTBOUND=str(attempts), TEST_GUARD=str(guard_seen))
-        self.local.start()
-        self.assertTrue(guard_seen.exists())
-        e = self.local.tool(self.ta, 'report_state', state_text='离线写入')
-        self.assertEqual(self.local.tool(self.ta,'get_own_state')['state']['event_id'], e['event_id'])
-        self.assertFalse(attempts.exists())
+        guard = Path(__file__).with_name('offline_service.py').resolve()
+        unrelated = self.work / 'unrelated_site'
+        unrelated.mkdir()
+        (unrelated / 'sitecustomize.py').write_text(
+            '# An existing installation already owns this module name.\n', encoding='utf-8')
+        prior_pythonpath = self.local.env.get('PYTHONPATH', '')
+        self.local.env['PYTHONPATH'] = os.pathsep.join(filter(None, (str(unrelated), prior_pythonpath)))
+        fixtures = [('other-sitecustomize-first', ()), ('site-disabled-isolated-runtime', ('-I', '-S'))]
+        for label, interpreter_options in fixtures:
+            with self.subTest(runtime=label):
+                log = self.work / (label + '.jsonl')
+                self.local.env['SLS_TEST_NETWORK_LOG'] = str(log)
+                self.local.start(bootstrap=guard, python_options=interpreter_options)
+                try:
+                    event = self.local.tool(self.ta, 'report_state', state_text='离线写入：' + label)
+                    own = self.local.tool(self.ta, 'get_own_state')['state']
+                    self.assertEqual(own['event_id'], event['event_id'])
+                    attempts = [json.loads(line) for line in log.read_text(encoding='utf-8').splitlines()]
+                    self.assertEqual(attempts, [
+                        {'event': 'socket.getaddrinfo', 'self_test': True},
+                        {'event': 'socket.connect', 'self_test': True},
+                    ])
+                finally:
+                    self.local.stop()
 
     def test_P_physical_corruption_and_offline_recovery(self):
         original = self.local.tool(self.ta, 'report_state', state_text='原文')

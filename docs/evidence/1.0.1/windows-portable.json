@@ -1,0 +1,47 @@
+{
+  "release": "1.0.1",
+  "portable_runtime": {
+    "result": "PASS",
+    "distribution": "python-3.14.10-embed-amd64.zip",
+    "official_release": "https://www.python.org/downloads/release/python-31410/",
+    "upstream_url": "https://www.python.org/ftp/python/3.14.10/python-3.14.10-embed-amd64.zip",
+    "bytes": 12619664,
+    "sha256": "90905e64a840557d8c1bc4f5b74db3d7ee85e3ffb217611cac1c7813acea4159",
+    "upstream_members": 37,
+    "pe32plus_amd64_count": 33,
+    "license_sha256": "935cf13e19f8c31b497d20b05d73623431a226b230c3599bc30fa3348979bc68",
+    "same_size_tampered_input_rejected": true,
+    "all_official_files_equal_in_release_rehearsal": true
+  },
+  "windows_binary_compatibility": {
+    "result": "PASS",
+    "harness": "Debian Wine 10.0~repack-6 on x86_64 Linux 6.18.57",
+    "script": "tests/windows_portable_smoke.py --wine",
+    "input": "1.0.1 application files with the pinned unmodified Windows runtime",
+    "ssl": "OpenSSL 3.5.9",
+    "smoke": {
+      "outcome": "PASS",
+      "os": "Wine compatibility",
+      "python": "3.14.10",
+      "sqlite": "3.50.4",
+      "system_python_on_launcher_path": false,
+      "launcher": "cmd.exe",
+      "public_proxies": "disabled for this test process",
+      "dashboard_http": 200,
+      "reconnect_launcher": "Reconnect-Windows.cmd",
+      "paired": true,
+      "mcp_stdio_tools": 15,
+      "sqlite_event_matches_mcp": true
+    },
+    "test_process_cleanup": "PASS",
+    "limitations": [
+      "Wine uses its own Windows APIs; Explorer, Microsoft Windows and the default browser were not used in this run.",
+      "The command test excludes system Python from the launcher PATH, runs in a fresh prefix and uses unusable public proxies. The test did not physically disconnect a PC."
+    ]
+  },
+  "native_windows": {
+    "result": "NOT_RUN",
+    "reason": "Available desktops run Linux. No native Windows runner or authorized remote Windows target was available.",
+    "included_reproduction": ".github/workflows/windows-portable.yml or runtime\\python.exe -I tests\\windows_portable_smoke.py on an extracted standalone Windows x64 desktop"
+  }
+}

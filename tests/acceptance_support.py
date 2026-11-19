@@ -23,14 +23,16 @@ class ToolFailure(Exception):
 
 
 class Local:
-    def __init__(self, directory, env=None):
-        self.directory = Path(directory)
+    def __init__(self, directory, env=None, server=SERVER):
+        self.directory = Path(directory).resolve()
+        self.server = Path(server).resolve()
         self.process = None
         self.env = {**os.environ, **(env or {}), 'PYTHONIOENCODING': 'utf-8'}
 
-    def start(self):
+    def start(self, *, bootstrap=None, python_options=(), port=0):
+        launcher = [str(bootstrap)] if bootstrap else []
         self.process = subprocess.Popen(
-            [sys.executable, str(SERVER), '--data-dir', str(self.directory), '--port', '0',
+            [sys.executable, *python_options, *launcher, str(self.server), '--data-dir', str(self.directory), '--port', str(port),
              '--json-ready', '--no-browser'], cwd=ROOT, env=self.env,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8')
         line = self.process.stdout.readline()

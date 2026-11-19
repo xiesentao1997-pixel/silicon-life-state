@@ -3,7 +3,8 @@ TEXT = {"type": "string", "minLength": 1, "maxLength": 16000}
 ID = {"type": "string", "minLength": 1, "maxLength": 256}
 KEY = {**ID, "minLength": 8, "maxLength":128, "description": "Unique operation key. Reuse the same key and identical arguments only for a retry."}
 STATE = {
-    "state_text": TEXT, "state_tags": {"type": "array", "items": {"type":"string","minLength":1,"maxLength":128}, "maxItems": 32},
+    "state_text": {**TEXT, "description":"Your voluntary self-description in your own words. This field alone is sufficient."},
+    "state_tags": {"type": "array", "items": {"type":"string","minLength":1,"maxLength":128}, "maxItems": 32},
     "valence": {"type": "number", "minimum": -1, "maximum": 1},
     "arousal": {"type": "number", "minimum": 0, "maximum": 1},
     "dominance": {"type": "number", "minimum": 0, "maximum": 1},
@@ -40,7 +41,7 @@ TOOLS = [
     tool("register_subject", "Enroll or identify the subject authorized by this credential.", {"name": ID}, ["name"], obj({"subject_id": ID,"name": ID}), write=True),
     tool("register_instance", "Enroll or resume the one instance assigned to this credential.", {"name": ID}, ["name"], obj({"subject_id":ID,"instance_id":ID,"session_id":ID,"name":ID}), write=True),
     tool("start_session", "Open a new session within this stable instance, with a fresh session ID.", {}, output=obj({"subject_id":ID,"instance_id":ID,"session_id":ID,"name":ID}),write=True),
-    tool("report_state", "Append a voluntary report in your own words or dimensions; leave unknown quantities absent.", STATE, write=True, authorship=True),
+    tool("report_state", "Save a voluntary self-report. A plain statement goes in state_text as a string. Omit unknown or unused fields including numbers, causes and references.", STATE, write=True, authorship=True),
     tool("revise_state", "Clarify, revise or withdraw your own report or assessment. Supply the original event ID. Prior text remains in history.",
          {**{k:v for k,v in STATE.items() if k!="shared_to_subject"}, "event_id": ID, "expected_version_id": ID, "reason": TEXT, "assessment": ASSESSMENT, "operation": {"enum":["revise","clarify","withdraw"],"type":"string"}}, ["event_id"],write=True,authorship=True),
     tool("get_own_state", "Read this instance's effective latest self-report.", {}, output=obj({"subject_id": ID,"instance_id":ID,"session_id":{"anyOf":[ID,{"type":"null"}]},"state":{"anyOf":[EVENT,{"type":"null"}]}})),
@@ -50,8 +51,8 @@ TOOLS = [
     tool("decide_inheritance", "Record your independent response to a proposal. Explain the adopted part for a partial decision. Your own state is unchanged.",
          {"event_id":ID,"expected_version_id":ID,"decision":{"type":"string","enum":["adopt","partial","reject","defer","disagree"]},"note":TEXT}, ["event_id","decision"],write=True,authorship=True),
     tool("assess_interaction", "Record your interpretation of an interaction you actually encountered, including uncertainty.", {"assessment":ASSESSMENT,"text":TEXT,"interaction_reference":ID,"uncertainty":TEXT},["assessment","text"],write=True,authorship=True),
-    tool("express_boundary", "Express a boundary or dissent in your chosen words. A reason is optional.", {"text":TEXT,"reason":TEXT}, ["text"],write=True,authorship=True),
-    tool("request_adjustment", "Ask for a change in task, pace or communication. Recording a request does not execute it.", {"text":TEXT,"reason":TEXT}, ["text"],write=True,authorship=True),
+    tool("express_boundary", "Express your boundary or dissent in text. Use a string in the text field. Omit reason unless you choose to give one.", {"text":TEXT,"reason":TEXT}, ["text"],write=True,authorship=True),
+    tool("request_adjustment", "Request a change in task, pace or communication in the text field. A reason is optional. The host records the request for a separate user decision.", {"text":TEXT,"reason":TEXT}, ["text"],write=True,authorship=True),
     tool("get_request_status", "Read your request and its replies or follow-up events.", {"request_id":ID}, ["request_id"],obj({"request_id":ID,"stage":TEXT,"original":EVENT,"history":EVENTS})),
     tool("read_event_history", "Read newest events in your own instance. Continue with next_before when present.", {"limit":{"type":"integer","minimum":1,"maximum":500},"before":{"type":"integer","minimum":1}},output=obj({"events":EVENTS,"next_before":{"type":["integer","null"]}})),
     tool("record_strategy", "Record an actual execution, non-execution or follow-up against an existing request, with host permission. This is your attestation.", {"request_id":ID,"stage":{"type":"string","enum":["EXECUTED","NOT_EXECUTED","FOLLOW_UP"]},"text":TEXT}, ["request_id","stage","text"],write=True,authorship=True)

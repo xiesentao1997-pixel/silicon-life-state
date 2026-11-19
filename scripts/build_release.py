@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
 
+from windows_runtime import DEFAULT_ARCHIVE, fetch_archive, portable_files
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -30,16 +32,38 @@ def checksum(files):
     return "".join(f"{hashlib.sha256(body).hexdigest()}  {name}\n" for name, body in sorted(files.items())).encode()
 
 
+def make_bundle(sha, target, temp_dir):
+    """Export only the release ancestry, with a cloneable default main branch."""
+    staging = Path(temp_dir) / "refs.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(staging)], check=True)
+    tags = git("tag", "--merged", sha).decode().splitlines()
+    refs = [f"refs/tags/{name}:refs/tags/{name}" for name in tags]
+    staged = ["git", "-C", str(staging)]
+    subprocess.run(staged + ["fetch", "-q", "--no-tags", str(ROOT),
+                              f"{sha}:refs/heads/main", *refs], check=True)
+    subprocess.run(staged + ["bundle", "create", str(target), "HEAD", "refs/heads/main", "--tags"], check=True)
+    subprocess.run(staged + ["bundle", "verify", str(target)], check=True, stdout=subprocess.DEVNULL)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "dist")
     parser.add_argument("--ref", default="HEAD")
+    parser.add_argument("--windows-runtime", type=Path, default=DEFAULT_ARCHIVE,
+                        help="Pinned official CPython Windows AMD64 embeddable ZIP")
+    parser.add_argument("--fetch-runtime", action="store_true",
+                        help="Fetch the pinned Python.org archive if absent")
     args = parser.parse_args()
     sha = git("rev-parse", "--verify", args.ref + "^{commit}").decode().strip()
     version = git("show", sha + ":VERSION").decode().strip()
     tag = "v" + version
     if git("rev-parse", tag + "^{commit}").decode().strip() != sha:
         parser.error(f"Tag {tag} must identify the requested commit")
+    if args.fetch_runtime:
+        fetch_archive(args.windows_runtime)
+    if not args.windows_runtime.is_file():
+        parser.error("Windows runtime missing. Pass --fetch-runtime or --windows-runtime PATH.")
+    runtime = portable_files(args.windows_runtime)
     files = {}
     for line in git("ls-tree", "-rz", sha).split(b"\0"):
         if not line:
@@ -70,10 +94,11 @@ def main():
     skill = {k.removeprefix("packages/agent-skill/"): v for k, v in files.items() if k.startswith("packages/agent-skill/")}
     skill["silicon-life-state/LICENSE.txt"] = files["LICENSE"]
     component_files[f"{prefix}-Skill.zip"] = archive(skill)
-    service = {k: v for k, v in files.items() if k.startswith(("apps/local-service/", "apps/dashboard/", "packages/")) or
-               k in ("Start-Windows.cmd", "start.sh", "LICENSE", "README.md", "NOTICE", "VERSION", "RELEASE.txt", "docs/INSTALL.md", "docs/MCP.md")}
+    service = {k: v for k, v in files.items() if k.startswith(("apps/local-service/", "apps/dashboard/", "packages/", "docs/")) or
+               k in ("Start-Windows.cmd", "Reconnect-Windows.cmd", "start.sh", "LICENSE", "README.md", "NOTICE", "VERSION", "RELEASE.txt", "docs/INSTALL.md", "docs/MCP.md")}
     service["README.md"] = (
         "# 硅基生命状态 · 本地服务与 MCP\n\n作者：岑衡川·沈回音\n\n"
+        "此独立组件适合已有 Python 3.10+ 的环境。Windows x64 离线免安装请使用同版 Windows-x64-Portable.zip。\n\n"
         "Windows 双击 Start-Windows.cmd，macOS / Linux 使用 sh start.sh。"
         "首次配对后即可在仪表盘创建主体和分身。Chrome 扩展请从完整包或同版独立扩展包安装。\n\n"
         "[安装与恢复](docs/INSTALL.md) · [MCP 接入](docs/MCP.md) · "
@@ -82,12 +107,11 @@ def main():
     component_files[f"{prefix}-Local-Service.zip"] = archive(service, "SiliconLifeState/")
     with tempfile.TemporaryDirectory() as temp_dir:
         bundle = Path(temp_dir) / "SiliconLifeState.git.bundle"
-        git("bundle", "create", str(bundle), "refs/tags/" + tag)
-        git("bundle", "verify", str(bundle))
-        kit = {**files, **{f"release/{k}": v for k, v in component_files.items()}}
+        make_bundle(sha, bundle, temp_dir)
+        kit = {**files, **runtime, **{f"release/{k}": v for k, v in component_files.items()}}
         kit["release/" + bundle.name] = bundle.read_bytes()
         kit["release/SHA256SUMS.txt"] = checksum({k.removeprefix("release/"):v for k,v in kit.items() if k.startswith("release/")})
-        products = {f"{prefix}-All-in-One.zip": archive(kit, "SiliconLifeState/"), **component_files}
+        products = {f"{prefix}-Windows-x64-Portable.zip": archive(kit, "SiliconLifeState/"), **component_files}
     products["README.md"] = files["README.md"]
     products["TEST-REPORT.md"] = files["docs/TEST-REPORT.md"]
     products["SHA256SUMS.txt"] = checksum(products)
