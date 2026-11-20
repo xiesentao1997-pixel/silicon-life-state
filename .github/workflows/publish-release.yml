@@ -1,26 +1,52 @@
 name: Publish verified release
 on:
   push:
-    tags: ['v1.0.3']
+    branches: [main]
+    paths: [VERSION]
+    tags: ['v1.0.4']
   workflow_dispatch:
     inputs:
       tag:
         description: Existing main-line release tag
         type: choice
         required: true
-        options: [v1.0.3]
+        options: [v1.0.4]
 
 permissions:
   contents: read
 concurrency:
-  group: release-${{ inputs.tag || github.ref_name }}
+  group: release-v1.0.4
   cancel-in-progress: false
 env:
-  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  RELEASE_TAG: v1.0.4
   PYTHONUTF8: '1'
 
 jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create the new version tag only on a versioned main push
+        shell: bash
+        run: |
+          test "$GITHUB_REPOSITORY" = xiesentao1997-pixel/silicon-life-state
+          test "v$(cat VERSION)" = "$RELEASE_TAG"
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            if [[ "$GITHUB_EVENT_NAME" == push ]]; then
+              test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
+            fi
+          else
+            test "$GITHUB_EVENT_NAME" = push
+            test "$GITHUB_REF" = refs/heads/main
+            git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "Silicon Life State $RELEASE_TAG"
+            git push origin "refs/tags/$RELEASE_TAG"
+          fi
   package:
+    needs: tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +66,8 @@ jobs:
           git merge-base --is-ancestor HEAD refs/remotes/origin/main
           python -m unittest discover -s tests -p 'test_*.py'
           python -m unittest packages.core.test_invariants
+          python -m pip install playwright
+          SILICON_CHROMIUM="$(command -v google-chrome)" python tests/dashboard_extra_browser.py --naming-only
           python scripts/build_release.py --ref "$RELEASE_TAG" --fetch-runtime --output dist
           python scripts/smoke_release.py dist --tag "$RELEASE_TAG"
       - uses: actions/upload-artifact@v4

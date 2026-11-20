@@ -2,7 +2,7 @@
 
 作者：匹夫 · 岑衡川 · 沈回音
 
-Windows x64 用户下载 **[SiliconLifeState-1.0.3-Windows-x64-Portable.zip](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Windows-x64-Portable.zip)**。解压后进入 `SiliconLifeState` 文件夹。启动器、运行时、仪表盘、Chrome 插件、SKILL 和本地服务都在这个文件夹里。保留解压目录，浏览器扩展与已配置的 Agent 会从这里加载文件。
+Windows x64 用户下载 **[SiliconLifeState-1.0.4-Windows-x64-Portable.zip](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.4/SiliconLifeState-1.0.4-Windows-x64-Portable.zip)**。解压后进入 `SiliconLifeState` 文件夹。启动器、运行时、仪表盘、Chrome 插件、SKILL 和本地服务都在这个文件夹里。保留解压目录，浏览器扩展与已配置的 Agent 会从这里加载文件。
 
 ## Windows x64 双击启动
 
@@ -46,7 +46,7 @@ ARM64 或 32 位 Windows 用户可以使用**源码包**配合适用于该设备
 
 ## 从旧版本升级
 
-在原仪表盘「导出与备份」中创建备份。按 Ctrl+C 关闭旧服务，解压 1.0.3，并使用同一操作系统账户与原数据目录启动。原先使用自定义目录的用户继续传入相同的 `--data-dir`。主体、分身、历史、既有 Agent 授权以及尚在有效期内的配对可继续使用。若安装目录改变，请在 Chrome 中从新目录重新加载扩展，并在宿主向导中更新指向本机脚本的路径。
+在原仪表盘「导出与备份」中创建备份。按 Ctrl+C 关闭旧服务，解压 1.0.4，并使用同一操作系统账户与原数据目录启动。原先使用自定义目录的用户继续传入相同的 `--data-dir`。主体、分身、历史、既有 Agent 授权以及尚在有效期内的配对可继续使用。若安装目录改变，请在 Chrome 中从新目录重新加载扩展，并在宿主向导中更新指向本机脚本的路径。
 
 ## 连接失效时
 

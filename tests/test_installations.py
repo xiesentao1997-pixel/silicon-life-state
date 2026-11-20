@@ -122,7 +122,7 @@ class Installations(unittest.TestCase):
         backup=self.client.api('backup',{})
         path=store.files.backup_path(backup['backup_id'])
         with closing(sqlite3.connect(path)) as db, db:
-            for table in ('conversation_bindings','installations'):
+            for table in ('name_history','conversation_bindings','installations'):
                 db.execute('DROP TABLE '+table)
             db.execute('PRAGMA user_version=1')
         path.with_suffix('.sig').write_text(store._backup_signature(path,backup['backup_id']))
@@ -130,7 +130,7 @@ class Installations(unittest.TestCase):
         self.assertEqual(self.client.api('subjects')['subjects'][0]['subject_id'],self.subject)
         self.assertEqual(self.client.api('installations')['installations'],[])
         with closing(sqlite3.connect(store.files.path)) as db, db:
-            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],2)
+            self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],3)
 
 
 if __name__=='__main__':

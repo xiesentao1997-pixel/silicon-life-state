@@ -6,7 +6,7 @@ on:
         description: Existing release tag to build and run
         type: choice
         required: true
-        options: [v1.0.3]
+        options: [v1.0.4]
 
 permissions:
   contents: read

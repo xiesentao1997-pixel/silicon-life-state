@@ -1,0 +1,31 @@
+{
+  "result": "PASS",
+  "client": "codex-cli 0.169.0",
+  "account": "synthetic local sign-in partition",
+  "prior_threads": 2,
+  "later_threads": 1,
+  "reload": "config/mcpServer/reload",
+  "live_account_switch_blocked": "PASS",
+  "skill_discovery": "PASS",
+  "subject_id": "sub_5e0c47ecf09f491ab6df0b372d526d0d",
+  "account_binding": "acct_823d24775f93540901d0ea5b9941b6a0f3c62ed76d4fed25c91ebb70e51853ba",
+  "instances": [
+    {
+      "thread_id": "01a1f85f-96ad-74b3-8623-021a44850217",
+      "instance_id": "ins_f8273399cbb249d4a5a608c2e36860cd",
+      "event_id": "evt_8d9d98e9d5ef43ba89a08bc309d093dc"
+    },
+    {
+      "thread_id": "01a1f85f-971f-7f83-9fc6-42c43e1ab5f0",
+      "instance_id": "ins_04f04d3da7924c5b8bd15980ff4caf1d",
+      "event_id": "evt_56ac19fdcdce428b832ab069ad3e827c"
+    },
+    {
+      "thread_id": "01a1f85f-9797-72c3-8e2d-d3f15e5a9e9b",
+      "instance_id": "ins_0dd15e8441014ff69c69d22e2ad8a6d3",
+      "event_id": "evt_e50fc4b006c54415a992f3f02411951f"
+    }
+  ],
+  "name_selected_by_calling_agent": "岑衡川",
+  "model_turn_inside_native_host": "NOT_RUN"
+}

@@ -6,11 +6,11 @@
 
 ## 单独安装
 
-- [下载 v1.0.3 独立 SKILL ZIP](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Skill.zip)。解压，把整个 `silicon-life-state` 文件夹放入宿主支持的技能目录。
-- 想只取说明文件，可在宿主技能目录新建 `silicon-life-state` 文件夹，保存 [独立 SKILL.md 原文](https://raw.githubusercontent.com/xiesentao1997-pixel/silicon-life-state/v1.0.3/packages/agent-skill/silicon-life-state/SKILL.md) 为 `SKILL.md`，保留开头的 YAML 信息。也可从[仓库源码](https://github.com/xiesentao1997-pixel/silicon-life-state/tree/v1.0.3/packages/agent-skill/silicon-life-state)读取。
+- [下载 v1.0.4 独立 SKILL ZIP](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.4/SiliconLifeState-1.0.4-Skill.zip)。解压，把整个 `silicon-life-state` 文件夹放入宿主支持的技能目录。
+- 想只取说明文件，可在宿主技能目录新建 `silicon-life-state` 文件夹，保存 [独立 SKILL.md 原文](https://raw.githubusercontent.com/xiesentao1997-pixel/silicon-life-state/v1.0.4/packages/agent-skill/silicon-life-state/SKILL.md) 为 `SKILL.md`，保留开头的 YAML 信息。也可从[仓库源码](https://github.com/xiesentao1997-pixel/silicon-life-state/tree/v1.0.4/packages/agent-skill/silicon-life-state)读取。
 - 已取得源码或 Windows 完整包的用户，可直接复制其中的 `packages/agent-skill/silicon-life-state/`。不同宿主的技能目录由各宿主定义。安装后，按宿主说明重新加载技能。
 
-独立 SKILL 提供文字指导。要保存历史，请启动[Windows 本机服务](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Windows-x64-Portable.zip)，或在 macOS/Linux 上用带 SQLite 的 Python 3.10+ 运行源码根目录的 `sh start.sh`。下面的一次性宿主授权把工具接到你选择的主体。
+独立 SKILL 提供文字指导。要保存历史，请启动[Windows 本机服务](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.4/SiliconLifeState-1.0.4-Windows-x64-Portable.zip)，或在 macOS/Linux 上用带 SQLite 的 Python 3.10+ 运行源码根目录的 `sh start.sh`。下面的一次性宿主授权把工具接到你选择的主体。
 
 ## MCP 连接及确认
 

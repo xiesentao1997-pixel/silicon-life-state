@@ -18,7 +18,7 @@ from mcp_wire import CAPABILITIES, INFO, INSTRUCTIONS, LEGACY, LEGACY_VERSIONS, 
 MAX_LINE = 128 * 1024
 
 def main():
-    if not any(os.environ.get(k) for k in ("SILICON_AGENT_TOKEN", "SILICON_INSTALLATION_FILE", "SILICON_INSTALLATION_TOKEN")):
+    if not any(os.environ.get(k) for k in ("SILICON_AGENT_TOKEN", "SILICON_CODEX_PROFILE", "SILICON_INSTALLATION_FILE", "SILICON_INSTALLATION_TOKEN")):
         print("Configure the installation through the dashboard, or set SILICON_AGENT_TOKEN for one instance.",file=sys.stderr)
         return 2
     lock = Lock()

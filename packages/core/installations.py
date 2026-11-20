@@ -2,6 +2,7 @@
 import hashlib
 import hmac
 import os
+import re
 from pathlib import Path
 import tempfile
 
@@ -10,7 +11,7 @@ from .validation import digest, fail, fields, now, object_args, string, uid
 
 def public(row):
     return {key:row[key] for key in ('installation_id','subject_id','host','created_at')} | {
-        'active': row['digest'] is not None}
+        'account_binding':row['account_binding'], 'active': row['digest'] is not None}
 
 
 def credential(files, generation):
@@ -35,7 +36,7 @@ def authenticate(db, token):
 
 def update_holder(files, row):
     directory = files.home / 'host-grants'
-    path = directory / (row['installation_id'] + '.token')
+    path = directory / ((row['account_binding'] or row['installation_id']) + '.token')
     if row['digest'] is None:
         path.unlink(missing_ok=True)
     elif row['managed']:
@@ -61,8 +62,8 @@ def sync_holders(files,db):
     for path in directory.glob('.rotate-*'):
         path.unlink(missing_ok=True)
     rows = list(db.execute('SELECT * FROM installations WHERE managed=1'))
-    known = {row['installation_id'] for row in rows}
-    for path in directory.glob('instal_*.token'):
+    known = {row['account_binding'] or row['installation_id'] for row in rows}
+    for path in directory.glob('*.token'):
         if path.stem not in known:
             path.unlink(missing_ok=True)
     for row in rows:
@@ -81,10 +82,27 @@ def owner(store,db,action,args):
                 fail('SCOPE_CONFLICT','Selected instance does not belong to this subject.',409)
             if db.execute('SELECT 1 FROM conversation_bindings WHERE instance_id=?',(seed,)).fetchone():
                 fail('ALREADY_BOUND','This instance belongs to another installation. Select a new instance.',409)
+        binding = args.get('account_binding')
+        previous = args.get('previous_installation_id')
+        if binding:
+            if args['host'] != 'codex' or not re.fullmatch(r'acct_[0-9a-f]{64}',binding):
+                fail('INVALID_INPUT','Invalid local account binding.')
+            existing = db.execute('SELECT * FROM installations WHERE account_binding=?',(binding,)).fetchone()
+            if existing:
+                if existing['subject_id'] != sid or not existing['digest']:
+                    fail('ACCOUNT_ALREADY_BOUND','This account already has a subject. Restore the original grant explicitly if revoked.',409)
+                return {**public(existing),'generation':existing['generation']}
+        if previous:
+            prior = lookup(db,previous)
+            if not binding or prior['account_binding'] or prior['subject_id']!=sid or prior['host']!=args['host'] or not prior['digest']:
+                fail('SCOPE_CONFLICT','Cannot upgrade this installation.',409)
+            rotated = owner(store,db,'rotate_installation',{'installation_id':previous})
+            db.execute('UPDATE installations SET account_binding=? WHERE installation_id=?',(binding,previous))
+            return {**rotated,'account_binding':binding}
         identity, generation = uid('instal'), uid('gen')
-        db.execute('''INSERT INTO installations(installation_id,subject_id,host,created_at,generation,digest,seed_instance_id)
-                      VALUES(?,?,?,?,?,?,?)''',
-                   (identity,sid,args['host'],now(),generation,digest(credential(store.files,generation)),seed))
+        db.execute('''INSERT INTO installations(installation_id,subject_id,host,created_at,generation,digest,seed_instance_id,account_binding)
+                      VALUES(?,?,?,?,?,?,?,?)''',
+                   (identity,sid,args['host'],now(),generation,digest(credential(store.files,generation)),seed,binding))
     else:
         identity = args['installation_id']
         row = lookup(db,identity)

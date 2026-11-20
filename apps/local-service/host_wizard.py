@@ -24,6 +24,7 @@ try:
 except ImportError:  # Supported Python 3.10
     from _vendor import tomli as tomllib
 
+from account_profile import account_binding
 from access import AccessError
 from mcp_wire import PREFIX, VERSION
 
@@ -53,7 +54,7 @@ class HostAdapter:
 
 ADAPTERS = {
     "codex": HostAdapter("toml", "在个人 config.toml 合并此表，重新启动 Codex，使用 /mcp 检查工具。"),
-    "claude": HostAdapter("json", "在 Claude Desktop 的设置 → 开发者 → 编辑配置合并条目，完全退出后重新启动。"),
+    "claude": HostAdapter("json", "在 Claude Desktop 的设置 → 开发者 → 编辑配置合并条目，完全退出后重新启动。在 Customize → Skills 上传本版 Skill.zip。"),
     "cursor": HostAdapter("json", "在 Cursor Settings → Tools & MCP 打开个人 ~/.cursor/mcp.json，合并此 stdio 条目并重新加载。", True),
     "other": HostAdapter("manual", "按宿主说明填写本机 command、args 和 env。HTTP 方式填写 URL 和 Authorization。宿主不支持本机 MCP 时，请使用已支持的客户端。"),
 }
@@ -156,7 +157,7 @@ def merged(host,old,entry):
             return False
         args = value.get("args",[])
         env = value.get("env",{})
-        return isinstance(args,list) and isinstance(env,dict) and bool({"SILICON_AGENT_TOKEN","SILICON_INSTALLATION_FILE"} & env.keys()) and any(
+        return isinstance(args,list) and isinstance(env,dict) and bool({"SILICON_AGENT_TOKEN","SILICON_INSTALLATION_FILE","SILICON_ACCOUNT_GRANTS"} & env.keys()) and any(
             isinstance(arg,str) and arg.replace("\\","/").endswith("/packages/mcp-server/stdio.py") for arg in args)
     # 1.0.0 emitted the hyphenated JSON key. Only migrate entries identifiable
     # by our script and grant variable; other applications keep their own keys.
@@ -172,7 +173,7 @@ def merged(host,old,entry):
     expected.setdefault(key,{})[NAME]=entry
     if ADAPTERS[host].format=="toml":
         if isinstance(existing,dict) and (set(existing)-{"command","args","env"} or
-                isinstance(existing.get("env"),dict) and set(existing["env"])-set(entry["env"])-{"SILICON_AGENT_TOKEN"}):
+                isinstance(existing.get("env"),dict) and set(existing["env"])-set(entry["env"])-{"SILICON_DEDICATED_PROFILE","SILICON_AGENT_TOKEN","SILICON_INSTALLATION_FILE","SILICON_ACCOUNT_GRANTS","SILICON_CODEX_PROFILE"}):
             raise ValueError("本项目的 Codex 条目含额外个人设置，请手动合并以保留这些设置。")
         text = old.decode("utf-8-sig") if old is not None else ""
         # Only remove a block produced by this wizard. Semantic verification below
@@ -252,6 +253,7 @@ class HostWizard:
     def __init__(self,store,base_url,paths=None):
         self.store=store
         self.url=base_url+"/mcp"
+        self.user_home=Path.home() if paths is None else Path(paths["codex"]).parent.parent if "codex" in paths else None
         self.targets=targets() if paths is None else {k:(Path(p),None,False) for k,p in paths.items()}
         self.plans=OrderedDict()
         self.discoveries=OrderedDict()
@@ -307,6 +309,7 @@ class HostWizard:
         manual=ADAPTERS[host].manual
         raw=None; reason=None; action=None
         installation = None
+        bound_config = False
         if path:
             try:
                 if ambiguous:
@@ -314,6 +317,7 @@ class HostWizard:
                 raw=safe_file(path)
                 if raw:
                     existing=parse_config(host,raw).get(ADAPTERS[host].servers_key,{}).get(NAME,{})
+                    bound_config=isinstance(existing,dict) and isinstance(existing.get("env"),dict) and "SILICON_CODEX_PROFILE" in existing["env"]
                     current=existing.get("env",{}).get("SILICON_INSTALLATION_FILE") if isinstance(existing,dict) and isinstance(existing.get("env",{}),dict) else None
                     for row in self.store.admin("list_installations",{})["installations"]:
                         owned_path=self.store.files.home/"host-grants"/(row["installation_id"]+".token")
@@ -325,14 +329,26 @@ class HostWizard:
                 reason=str(exc) if isinstance(exc,ValueError) else "无法读取目标配置，请检查文件权限。"
         else:
             reason="此宿主由你选择配置位置，可复制下方条目手动接入。"
+        profile = path.parent if host == "codex" and path and transport == "stdio" else None
+        account = account_binding(profile) if profile else None
+        if bound_config and not account:
+            reason="此账号配置需要原 Codex 登录。请登录后重新预览。"
+        if account:
+            for row in self.store.admin("list_installations",{})["installations"]:
+                if row["account_binding"] == account and (row["subject_id"] != sid or not row["active"]):
+                    reason="此账号已绑定其他主体或已撤销。请在原主体中管理或恢复授权。"
+        skill_target = (self.user_home / ".agents" / "skills" / "silicon-life-state" / "SKILL.md") if profile else None
+        if host=="cursor" and path and transport=="stdio":
+            skill_target=path.parent/"skills"/"silicon-life-state"/"SKILL.md"
         pid=secrets.token_urlsafe(24)
-        plan={"owner":hashlib.sha256(owner.encode()).digest(),"instance_id":iid,"subject_id":sid,
+        plan={"legacy_id":installation,"account":account,"profile":profile,"skill_target":skill_target,"owner":hashlib.sha256(owner.encode()).digest(),"instance_id":iid,"subject_id":sid,
               "host":host,"transport":transport,"installation_id":installation,"path":path,"digest":fingerprint(raw),"reason":reason,
               "expiry":time.monotonic()+900,"key":"host-wizard-"+pid}
         self.plans[pid]=plan
         while len(self.plans)>100:
             self.plans.popitem(last=False)
-        return {"plan_id":pid,"host":host,"os":sys.platform,"target":str(path) if path else None,
+        return {"scope":"codex_account" if account else ("personal_profile" if transport=="stdio" else "instance"),
+                "skill_target":str(skill_target) if skill_target else None,"plan_id":pid,"host":host,"os":sys.platform,"target":str(path) if path else None,
                 "installation":str(install) if install else None,"existing_file":raw is not None,
                 "can_write":bool(path and not reason),"action":action,"reason":reason,"manual":manual,
                 "preview":snippet(host,self.entry(transport,MASK,host)),"status":self.status(plan)}
@@ -360,19 +376,40 @@ class HostWizard:
                     raise AccessError(409,"CONFIG_CHANGED","文件已改变。请重新检查配置。")
             except (OSError,ValueError) as exc:
                 raise AccessError(409,"CONFIG_WRITE_FAILED","无法安全读取目标文件。请重新检查配置或手动合并。") from exc
+        profile=plan["profile"]
+        account=plan["account"]
+        if profile and account_binding(profile)!=account:
+            raise AccessError(409,"ACCOUNT_CHANGED","登录账号已改变。请重新预览。")
+        if plan["reason"] and plan["reason"].startswith("此账号"):
+            raise AccessError(409,"ACCOUNT_ALREADY_BOUND",plan["reason"])
         if plan["transport"]=="stdio":
-            if not plan.get("installation_id"):
-                grant=self.store.admin("issue_installation",{"subject_id":plan["subject_id"],"host":plan["host"],"idempotency_key":plan["key"]})
+            if account or not plan.get("installation_id"):
+                params={"subject_id":plan["subject_id"],"host":plan["host"],"idempotency_key":plan["key"]}
+                if account:
+                    params["account_binding"]=account
+                    if plan.get("legacy_id"):
+                        params["previous_installation_id"]=plan["legacy_id"]
+                grant=self.store.admin("issue_installation",params)
                 plan["installation_id"]=grant["installation_id"]
             credential=self.store.host_grant_file(plan["installation_id"])
         else:
             grant=self.store.admin("connection_grant",{"instance_id":plan["instance_id"],"idempotency_key":plan["key"]})
             credential=grant["token"]
         entry=self.entry(plan["transport"],credential,plan["host"])
+        if account:
+            entry["env"].pop("SILICON_INSTALLATION_FILE")
+            entry["env"].update(SILICON_CODEX_PROFILE=str(profile),SILICON_ACCOUNT_GRANTS=str(credential.parent))
+        elif profile:
+            entry["env"]["SILICON_DEDICATED_PROFILE"]=str(profile)
         if action=="copy":
             return {"config":snippet(plan["host"],entry)}
         if action=="apply":
             try:
+                if plan["skill_target"]:
+                    dest=plan["skill_target"]
+                    old=safe_file(dest)
+                    skill=(ROOT/"packages/agent-skill/silicon-life-state/SKILL.md").read_bytes()
+                    atomic_install(dest,fingerprint(old),skill)
                 raw=safe_file(plan["path"])
                 if plan.get("installed") and fingerprint(raw)==plan["installed"]:
                     return {"saved":True,"backup":plan.get("backup"),"target":str(plan["path"])}
@@ -395,7 +432,7 @@ class HostWizard:
             if fingerprint(safe_file(plan["path"]))!=plan["installed"]:
                 raise AccessError(409,"CONFIG_CHANGED","目标文件已有变化。请重新检查当前配置。")
         meta={PREFIX+"protocolVersion":VERSION,PREFIX+"clientCapabilities":{},
-              PREFIX+"clientInfo":{"name":PROBE,"version":"1.0.3"}}
+              PREFIX+"clientInfo":{"name":PROBE,"version":"1.0.4"}}
         req={"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":meta}}
         try:
             if plan["transport"]=="stdio":

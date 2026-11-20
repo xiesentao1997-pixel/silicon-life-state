@@ -81,6 +81,6 @@ if __name__ == "__main__":
     parser.add_argument("tag")
     parser.add_argument("directory", type=Path)
     args = parser.parse_args()
-    if args.tag != "v1.0.3" or os.environ.get("GH_REPO") != "xiesentao1997-pixel/silicon-life-state":
-        parser.error("This release targets v1.0.3 in xiesentao1997-pixel/silicon-life-state")
+    if args.tag != "v1.0.4" or os.environ.get("GH_REPO") != "xiesentao1997-pixel/silicon-life-state":
+        parser.error("This release targets v1.0.4 in xiesentao1997-pixel/silicon-life-state")
     publish(args.tag, args.directory.resolve())

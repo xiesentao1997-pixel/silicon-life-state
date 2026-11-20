@@ -1,0 +1,16 @@
+{
+  "result": "PASS",
+  "utc": "2026-11-20T09:54:04.394051+00:00",
+  "upgrade": {
+    "from_version": "1.0.3",
+    "to_version": "1.0.4",
+    "unchanged_raw_events": 7,
+    "unchanged_event_map_sha256": "71bb32416188f78ac13734c2792a30b8f2841eb3e9dddcc549ab01c0ace5ecf6",
+    "same_subjects_instances_sessions": true,
+    "same_requests_memory_stats": true,
+    "old_owner_and_agent_credentials_work": true,
+    "pending_extension_code_single_use": true,
+    "existing_managed_backup_listed": true,
+    "new_event_continues_old_chain": true
+  }
+}

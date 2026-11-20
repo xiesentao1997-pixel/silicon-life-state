@@ -13,6 +13,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--naming-only", action="store_true")
     args = parser.parse_args()
     if args.output:
         args.output.mkdir(parents=True, exist_ok=True)
@@ -52,6 +53,23 @@ def main():
             assert len(snap["instances"]) == 1
             iid = snap["instances"][0]["instance_id"]
             passed.append("UI created a subject and independent instance; verified through owner API")
+
+            page.locator('[data-act=rename-instance]').first.click()
+            form.locator('[name=name]').fill('María del Mar')
+            form.locator('button[type=submit]').click()
+            page.wait_for_selector('dialog[open]',state='hidden')
+            profile=service.api("snapshot?subject_id="+sid)["instances"][0]["instance_name"]
+            assert profile["suggestion"]=="María del Mar" and profile["name"]=="界面窗口"
+            page.locator('[data-act=rename-instance]').first.click()
+            expect(form).to_contain_text('用户建议')
+            form.locator('button[type=button]').first.click()
+            passed.append("Naming UI submitted a suggestion, retained the current name and displayed attributed history")
+
+            if args.naming_only:
+                assert not js_errors,js_errors
+                print("PASS · Chromium", browser.version, "· name suggestion and attributed history")
+                browser.close()
+                return
 
             def preview(host,transport="stdio"):
                 page.locator("#content [data-act=issue]").first.click()

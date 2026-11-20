@@ -22,7 +22,7 @@ export function hostWizard({modal, api, toast, instanceField, subjectId, instanc
     '<div id="wiz-transport" hidden><label class="field">连接方式<select name="transport"><option value="stdio">本机 stdio</option>' +
     '<option value="http">本机 Streamable HTTP</option></select></label></div>' +
     '<div id="wiz-instance" hidden>' + (hasInstances ? instanceField(instanceId) : '使用 HTTP 前，请先创建用于绑定的独立分身。') + '</div>' +
-    '<p class="quiet">每个系统账户和宿主配置单独授权。使用同一宿主访问不同账号时，请分别使用隔离的宿主配置。未传入可靠对话标识的宿主，需让 Agent 在原对话保存工具返回的分身句柄，之后凭句柄恢复。</p>' +
+    '<p class="quiet">向导优先识别本机 Codex 登录账号。缺少可靠账号标识时，只授权当前专用个人配置；不同账号请使用隔离配置。未传入可靠对话标识的宿主，需让 Agent 在原对话保存工具返回的分身句柄，之后凭句柄恢复。</p>' +
     '<p class="quiet">检查目标文件和语法后，你可以复制本项目条目、确认写入或测试本机连接。</p>',
     async f => {
       const form = document.querySelector('#form');
@@ -48,7 +48,8 @@ export function hostWizard({modal, api, toast, instanceField, subjectId, instanc
   function preview(host, plan) {
     const rootId = 'host-wizard-preview';
     const info = '<dl class="kv">' +
-      row('操作系统', platform[plan.os] || plan.os) +
+      row('授权范围', {codex_account:'本机 Codex 登录账号 · 已有与未来对话',personal_profile:'本机专用个人配置 · 请为不同账号使用独立系统用户或宿主配置',instance:'仅限所选分身'}[plan.scope]) +
+      (plan.skill_target ? row('个人 SKILL 安装位置',plan.skill_target) : '') + row('操作系统', platform[plan.os] || plan.os) +
       row('安装检测', plan.installation || (plan.existing_file ? '发现已有宿主配置文件' : '未检测到可执行程序')) +
       row('配置路径', plan.target || '由宿主的连接设置指定') +
       row('配置检查', plan.can_write ? (plan.existing_file ? '原配置语法有效 · ' : '目标文件尚未建立 · ') + plan.action : plan.reason) +
@@ -102,7 +103,7 @@ export function hostWizard({modal, api, toast, instanceField, subjectId, instanc
         } else if (action === 'apply') {
           msg.textContent = '配置已保存到 ' + response.target + '。' +
             (response.backup ? '原文件备份位于 ' + response.backup + '。' : '') +
-            '请重新加载宿主，再刷新工具发现状态。';
+            '请重新加载宿主，再刷新工具发现状态。已有对话重新打开即可发现工具，无需逐窗口配对。仅当前设备生效。';
           toast('宿主配置已保存');
         } else {
           area.innerHTML = activity(response);

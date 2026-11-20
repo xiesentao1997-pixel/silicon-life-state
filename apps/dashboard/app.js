@@ -219,7 +219,7 @@ async function refresh(force = false) {
     if (generation !== pollGeneration) return;
     const oldProblem = m.problem;
     m.subjectId = selected;
-    m.subject = inventory.subjects.find(s => s.subject_id === selected) || null;
+    m.subject = snap.subjects.find(s => s.subject_id === selected) || null;
     m.subjects = inventory.subjects;
     m.instances = snap.instances.filter(i => i.subject_id === selected);
     m.sessions = snap.sessions || [];
@@ -404,9 +404,9 @@ function newSubject() {
     return;
   }
   const key = id();
-  modal('创建主体', field('主体名称', '<input name="name" maxlength="100" required autofocus placeholder="输入逻辑主体名称">'), async f => {
+  modal('创建主体', field('主体名称', '<input name="name" maxlength="100" autofocus placeholder="可留空，邀请 AI 自主命名">'), async f => {
     const r = await write('subjects', {
-      name: f.name.trim()
+      ...(f.name.trim() ? {name:f.name.trim()} : {})
     }, key);
     m.subjectId = r.subject_id;
     m.instanceId = '';
@@ -420,10 +420,10 @@ function newInstance() {
   const key = id(),
     subject = m.subject;
   modal('创建分身', '<p class="quiet">关联主体 · ' + h(subject.name) + '</p>'
-    + field('分身名称', '<input name="name" maxlength="100" required autofocus placeholder="输入窗口或会话名称">'), async f => {
+    + field('分身名称', '<input name="name" maxlength="100" autofocus placeholder="可留空，邀请分身自主命名">'), async f => {
     const r = await write('instances', {
       subject_id: subject.subject_id,
-      name: f.name.trim()
+      ...(f.name.trim() ? {name:f.name.trim()} : {})
     }, key);
     m.instanceId = r.instance_id;
     close();
@@ -745,12 +745,16 @@ async function act(a, v) {
       if (!entity) break;
       const name = subject ? '主体' : '分身';
       const key = id();
-      modal('修改' + name + '名称', field('显示名称', '<input name="name" maxlength="100" value="' + h(entity.name) + '" required autofocus>'), async f => {
-        await write(subject ? 'subjects/rename' : 'instances/rename', {name:f.name.trim(),
+      const profile=subject ? entity.subject_name : entity.instance_name;
+      const labels={ai_chosen:'AI 自行选择',user_confirmed_by_ai:'用户建议、AI 确认',temporary:'系统临时标识',historical:'历史迁移名称',user_assigned:'用户设定',user_suggested:'用户建议'};
+      const actions={create:'创建',choose:'自主命名',confirm:'确认',suggest:'建议',defer:'暂缓命名',owner_rename:'用户更名'};
+      const history=(profile?.history || []).map(r=>'<li>'+h(r.created_at)+' · '+h(actions[r.action])+' · '+h(r.name)+'（'+h(labels[r.source])+'）</li>').join('');
+      modal(name+'自主命名', '<p>AI 可以自选完整姓名、确认你的建议或暂缓命名。姓名可以随时修改。</p><ul>'+history+'</ul>'+field('建议给 AI 的姓名', '<input name="name" maxlength="100" value="' + h(entity.name) + '" required autofocus>'), async f => {
+        await write('names/suggest', {subject_id:entity.subject_id,name:f.name.trim(),
           ...(subject ? {subject_id:entity.subject_id} : {instance_id:entity.instance_id})}, key);
         close();
         await refresh(true);
-        toast(name + '名称已更新');
+        toast('建议已保存，等待 AI 自主决定');
       });
       break;
     }

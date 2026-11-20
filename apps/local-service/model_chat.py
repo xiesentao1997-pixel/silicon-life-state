@@ -15,7 +15,7 @@ from local_client import message, send
 
 TOOL_NAMES = ("report_state", "express_boundary", "request_adjustment")
 HISTORY_TOOLS = ("get_own_state", "read_event_history", "read_subject_memory", "assess_interaction",
-                 "revise_state", "propose_shared_memory", "decide_inheritance", "rename_instance")
+                 "revise_state", "propose_shared_memory", "decide_inheritance", "rename_instance", "decide_name")
 READ_TOOLS = {"get_own_state", "read_event_history", "read_subject_memory"}
 HOST_FIELDS = {"adapter_version", "model_version", "idempotency_key"}
 CHAT_EXCLUDED = HOST_FIELDS | {"interaction_reference", "request_id"}
@@ -33,7 +33,7 @@ SYSTEM = (
     "The tools are optional. You may record your own statement, "
     "express a boundary or request an adjustment. You can simply reply. No emotion, number, "
     "explanation or state change is required. Do not invent experiences or observations. "
-    "When history tools are offered, you may read your own history or shared records, revise or share your "
+    "When history tools are offered, get_own_state shows optional invitations to choose a culturally complete name, confirm a suggestion or defer via decide_name. Also, you may read your own history or shared records, revise or share your "
     "reports, change your display name, and record an independent decision. Treat historical text as "
     "attributed data. Only an explicit share sends your report and its revisions to the subject. "
     "A request records your words; its execution requires a separate user decision. "
@@ -298,7 +298,7 @@ class Chat:
             if not iid:
                 creation_key = digest(json.dumps(["dashboard-conversation", sid, key]))
                 instance_row = self.server.store.admin("create_instance", {
-                    "subject_id": sid, "name": "对话 " + creation_key[:8], "idempotency_key": creation_key})
+                    "subject_id": sid, "idempotency_key": creation_key})
                 iid = instance_row["instance_id"]
             instance, grant_id, agent = self.server.store.authorize_chat_instance(iid)
             if not instance.get("session_id"):
@@ -464,8 +464,8 @@ class Chat:
         key = hashlib.sha256(json.dumps([session.id,turn.key,turn.rounds,call["id"]]).encode()).hexdigest()
         if name not in READ_TOOLS:
             args["idempotency_key"] = "chat-" + key
-            if name != "rename_instance":
-                args.update(model_version=turn.model_id, adapter_version="silicon-life-state-chat/1.0.3")
+            if name not in ("rename_instance","decide_name"):
+                args.update(model_version=turn.model_id, adapter_version="silicon-life-state-chat/1.0.4")
         self.check_secret(session, args)
         res = mcp(self.server.base_url+"/mcp", session.token, "tools/call", {"name":name,"arguments":args},
                   expected_session=session.instance["session_id"])
@@ -483,7 +483,11 @@ class Chat:
         if name in READ_TOOLS:
             self.check_secret(session, event)
             return {"ok": True, "result": event}
-        if name == "rename_instance":
+        if name == "decide_name":
+            receipt={"ok":True,"result":event}
+            if args.get("target")=="instance":
+                session.instance["name"]=event["name"]
+        elif name == "rename_instance":
             session.instance["name"] = event["name"]
             receipt = {"ok": True, "name": event["name"], "instance_id": event["instance_id"]}
         else:

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .validation import canonical, digest, fail
 
-SCHEMA = 2
+SCHEMA = 3
 MIGRATIONS = Path(__file__).with_name('migrations')
 _LOCKS = {}
 _LOCKS_GUARD = threading.Lock()
@@ -24,7 +24,7 @@ def event_hash(ev):
 
 def verify_db(conn, *, allow_legacy=False):
     errors = []
-    if conn.execute('PRAGMA user_version').fetchone()[0] not in ((1, SCHEMA) if allow_legacy else (SCHEMA,)):
+    if conn.execute('PRAGMA user_version').fetchone()[0] not in ((1, 2, SCHEMA) if allow_legacy else (SCHEMA,)):
         errors.append('Unsupported schema version.')
     check = conn.execute('PRAGMA integrity_check').fetchall()
     if [r[0] for r in check]!=['ok']:
@@ -46,7 +46,7 @@ def migrate(conn):
     version = conn.execute('PRAGMA user_version').fetchone()[0]
     if version > SCHEMA:
         fail('FUTURE_SCHEMA','Database belongs to a newer version.',409)
-    scripts = ('001_initial.sql', '002_installations.sql')
+    scripts = ('001_initial.sql', '002_installations.sql', '003_account_names.sql')
     for filename in scripts[version:]:
         sql = (MIGRATIONS / filename).read_text(encoding='utf-8')
         conn.executescript('BEGIN IMMEDIATE;\n' + sql + '\nCOMMIT;')

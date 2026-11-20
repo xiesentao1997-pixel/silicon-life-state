@@ -2,7 +2,7 @@
 
 作者：匹夫 · 岑衡川 · 沈回音
 
-解压 SiliconLifeState-1.0.3-Windows-x64-Portable.zip，在 SiliconLifeState 文件夹双击 Start-Windows.cmd。服务使用同目录的 runtime/python.exe，检查 Python 版本、SQLite、SSL 与本机 HTTP 模块后启动并打开仪表盘。绿色包已经包含运行时和全部应用资源；安装者可以在未联网的 Windows x64 电脑使用本地功能。有本地模型时也可以连接本地模型，调用云模型需要网络。应用文件夹可移动，移动后需重新生成指向新路径的宿主配置。既有业务数据默认保存在当前用户的 LocalAppData/SiliconLifeState 下。
+解压 SiliconLifeState-1.0.4-Windows-x64-Portable.zip，在 SiliconLifeState 文件夹双击 Start-Windows.cmd。服务使用同目录的 runtime/python.exe，检查 Python 版本、SQLite、SSL 与本机 HTTP 模块后启动并打开仪表盘。绿色包已经包含运行时和全部应用资源；安装者可以在未联网的 Windows x64 电脑使用本地功能。有本地模型时也可以连接本地模型，调用云模型需要网络。应用文件夹可移动，移动后需重新生成指向新路径的宿主配置。既有业务数据默认保存在当前用户的 LocalAppData/SiliconLifeState 下。
 
 ## 运行时出处
 

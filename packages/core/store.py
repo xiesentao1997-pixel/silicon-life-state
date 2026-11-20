@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from . import installations
+from . import installations, naming
 from . import projections as view
 from .storage import Files, event_hash, migrate, verify_db
 from .validation import (DomainError, META, READS, REPORT, canonical, digest, fail,
@@ -55,9 +55,11 @@ def _events(db, field=None, value=None):
     return [view.event_dict(r) for r in rows]
 
 
-def _create_subject(db, name):
+def _create_subject(db, name=None, source='temporary'):
+    name = name or '未命名主体'
     row = {'subject_id':uid('sub'),'name':name,'created_at':now(),'level':1}
     db.execute('INSERT INTO subjects VALUES(:subject_id,:name,:created_at,:level)',row)
+    naming.record(db,row['subject_id'],None,name,'create',source,'system' if source=='temporary' else source)
     return row
 
 
@@ -66,10 +68,12 @@ def _new_session(db, iid):
     return _instance(db,iid)
 
 
-def _create_instance(db, sid, name):
+def _create_instance(db, sid, name=None, source='temporary'):
+    name = name or '未命名分身'
     _subject(db,sid)
     iid = uid('ins')
     db.execute('INSERT INTO instances VALUES(?,?,?,?)',(iid,sid,name,now()))
+    naming.record(db,sid,iid,name,'create',source,'system' if source=='temporary' else source)
     return _new_session(db,iid)
 
 
@@ -167,6 +171,10 @@ def _snapshot(db, sid=None):
     filt,params = (' WHERE subject_id=?',(sid,)) if sid else ('',())
     subjects = [dict(r) for r in db.execute('SELECT * FROM subjects'+filt+' ORDER BY rowid',params)]
     instances = [_instance(db,r[0]) for r in db.execute('SELECT instance_id FROM instances'+filt+' ORDER BY rowid',params)]
+    for subject in subjects:
+        subject['subject_name'] = naming.profile(db,subject['subject_id'])
+    for inst in instances:
+        inst['instance_name'] = naming.profile(db,inst['subject_id'],inst['instance_id'])
     sessions = [dict(r) for r in db.execute('''SELECT s.*,i.subject_id FROM sessions s JOIN instances i
          ON i.instance_id=s.instance_id'''+(' WHERE i.subject_id=?' if sid else '')+' ORDER BY s.rowid',params)]
     events = _events(db,'subject_id',sid) if sid else _events(db)
@@ -307,7 +315,7 @@ class Store:
         if action=='register_subject':
             if sid:
                 return _subject(db,sid)
-            subject = _create_subject(db,args['name'])
+            subject = _create_subject(db,args['name'],'ai_chosen')
             db.execute('UPDATE grants SET subject_id=? WHERE grant_id=?',(subject['subject_id'],actor))
             return subject
         if not sid:
@@ -316,20 +324,23 @@ class Store:
             if iid:
                 instance = _instance(db,iid)
                 return instance if instance['session_id'] else _new_session(db,iid)
-            instance = _create_instance(db,sid,args['name'])
+            instance = _create_instance(db,sid,args['name'],'ai_chosen')
             db.execute('UPDATE grants SET instance_id=? WHERE grant_id=?',(instance['instance_id'],actor))
             return instance
         if not iid:
             fail('INSTANCE_REQUIRED','Register your instance first.',409)
         instance = _instance(db,iid)
+        if action=='decide_name':
+            return naming.decide(db,instance,args)
         if action=='rename_instance':
+            naming.record(db,sid,iid,args['name'],'choose','ai_chosen',iid)
             db.execute('UPDATE instances SET name=? WHERE instance_id=?',(args['name'],iid))
             return _instance(db,iid)
         if action=='start_session':
             return _new_session(db,iid)
         if action=='get_own_state':
             states = view.latest_states(view.reports(_events(db,'instance_id',iid)))
-            return {**instance,'state':states.get(iid)}
+            return {**instance,'state':states.get(iid), 'subject_name':naming.profile(db,sid), 'instance_name':naming.profile(db,sid,iid)}
         if action=='read_subject_memory':
             memory = view.memory_view(_events(db,'subject_id',sid))
             return {'subject_id':sid, **memory, 'summary':view.subject_summary(sid, memory)}
@@ -393,10 +404,20 @@ class Store:
     def _owner(self,db,action,args):
         if action in {'list_installations','issue_installation','rotate_installation','restore_installation','revoke_installation'}:
             return installations.owner(self,db,action,args)
+        if action=='suggest_name':
+            sid=args['subject_id']; iid=args.get('instance_id'); _subject(db,sid)
+            if iid and _instance(db,iid)['subject_id'] != sid:
+                fail('SCOPE_CONFLICT','Instance belongs to another subject.',409)
+            naming.record(db,sid,iid,args['name'],'suggest','user_suggested',OWNER)
+            return naming.profile(db,sid,iid)
         if action=='rename_subject':
+            _subject(db,args['subject_id'])
+            naming.record(db,args['subject_id'],None,args['name'],'owner_rename','user_assigned',OWNER)
             db.execute('UPDATE subjects SET name=? WHERE subject_id=?',(args['name'],args['subject_id']))
             return _subject(db,args['subject_id'])
         if action=='rename_instance':
+            i=_instance(db,args['instance_id'])
+            naming.record(db,i['subject_id'],i['instance_id'],args['name'],'owner_rename','user_assigned',OWNER)
             db.execute('UPDATE instances SET name=? WHERE instance_id=?',(args['name'],args['instance_id']))
             return _instance(db,args['instance_id'])
         if action in {'snapshot','export'}:
@@ -404,9 +425,9 @@ class Store:
         if action=='verify':
             return verify_db(db)
         if action=='create_subject':
-            return _create_subject(db,args['name'])
+            return _create_subject(db,args.get('name'),'user_assigned' if args.get('name') else 'temporary')
         if action=='create_instance':
-            return _create_instance(db,args['subject_id'],args['name'])
+            return _create_instance(db,args['subject_id'],args.get('name'),'user_assigned' if args.get('name') else 'temporary')
         if action=='connection_grant':
             live = db.execute('SELECT grant_id,subject_id,instance_id FROM grants WHERE instance_id=?',
                               (args['instance_id'],)).fetchone()
@@ -688,8 +709,8 @@ class Store:
                     identity = row['installation_id']
                     current = live_installations.get(identity)
                     if current and (current['subject_id'],current['host'])==(row['subject_id'],row['host']):
-                        dest.execute('UPDATE installations SET generation=?,digest=?,managed=? WHERE installation_id=?',
-                                     (current['generation'],current['digest'],current['managed'],identity))
+                        dest.execute('UPDATE installations SET generation=?,digest=?,managed=?,account_binding=? WHERE installation_id=?',
+                                     (current['generation'],current['digest'],current['managed'],current['account_binding'],identity))
                         if current['seed_instance_id']!=row['seed_instance_id']:
                             dest.execute('UPDATE installations SET seed_instance_id=NULL WHERE installation_id=?',(identity,))
                     else:

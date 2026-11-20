@@ -43,13 +43,13 @@ python tests/live_model_chat.py --endpoint http://127.0.0.1:8080/v1 --model qwen
 ## 制作发行包
 
 ```sh
-python scripts/build_release.py --ref v1.0.3 --fetch-runtime --output dist/1.0.3
+python scripts/build_release.py --ref v1.0.4 --fetch-runtime --output dist/1.0.4
 ```
 
-默认模式读取标签对应的 Git 对象，并校验所附 CPython 官方 ZIP 的大小和 SHA-256。离线构建可以用 `--windows-runtime /path/to/python-3.14.10-embed-amd64.zip` 指定预先下载的原件。对无法访问 Python.org 的独立构建环境，可以使用 `--runtime-from-baseline /path/to/SiliconLifeState-1.0.1-Windows-x64-Portable.zip` 复用 1.0.1 内已经逐文件验证的官方运行时（强制校验历史整包 SHA-256 与上游原始文件摘要）。完整包、源码、浏览器扩展、SKILL、本地服务、README、验收报告及总 SHA-256 清单位于 dist/1.0.3/。源码文件和 ZIP 的时间戳采用固定值。用户可用 `sha256sum -c SHA256SUMS.txt`，或在 Windows PowerShell 中使用 `Get-FileHash -Algorithm SHA256 文件名` 核对下载。分发时保留 LICENSE 和 NOTICE。
+默认模式读取标签对应的 Git 对象，并校验所附 CPython 官方 ZIP 的大小和 SHA-256。离线构建可以用 `--windows-runtime /path/to/python-3.14.10-embed-amd64.zip` 指定预先下载的原件。对无法访问 Python.org 的独立构建环境，可以使用 `--runtime-from-baseline /path/to/SiliconLifeState-1.0.1-Windows-x64-Portable.zip` 复用 1.0.1 内已经逐文件验证的官方运行时（强制校验历史整包 SHA-256 与上游原始文件摘要）。完整包、源码、浏览器扩展、SKILL、本地服务、README、验收报告及总 SHA-256 清单位于 dist/1.0.4/。源码文件和 ZIP 的时间戳采用固定值。用户可用 `sha256sum -c SHA256SUMS.txt`，或在 Windows PowerShell 中使用 `Get-FileHash -Algorithm SHA256 文件名` 核对下载。分发时保留 LICENSE 和 NOTICE。
 
 GitHub Actions 工作流提供 Windows、Linux、macOS 的测试。实际在哪些系统执行过，以当前验收报告为准。
 
-复核交付 ZIP 时运行 `python scripts/smoke_release.py dist/1.0.3`。程序从完整包和独立服务包分别解压启动，创建临时主体，读取仪表盘和本地插画，并核对独立组件和 Git bundle 的提交。
+复核交付 ZIP 时运行 `python scripts/smoke_release.py dist/1.0.4`。程序从完整包和独立服务包分别解压启动，创建临时主体，读取仪表盘和本地插画，并核对独立组件和 Git bundle 的提交。
 
 有仓库发布权限的维护者可将主线与标签推送至权威仓库，由标签触发发布，或手工运行 Actions 的 **Publish verified release**，选择已有标签。工作流校验发布资产、在 Windows runner 上运行解压后的绿色包，再把同一批资产附到该仓库的 GitHub Release。

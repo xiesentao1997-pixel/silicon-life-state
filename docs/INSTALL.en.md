@@ -4,10 +4,10 @@
 
 ## Windows x64: easiest path
 
-1. Download the complete [SiliconLifeState-1.0.3-Windows-x64-Portable.zip](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Windows-x64-Portable.zip) together with its matching SHA-256 list. Do **not** download only the SKILL ZIP or Chrome ZIP if you want the full local state service.
+1. Download the complete [SiliconLifeState-1.0.4-Windows-x64-Portable.zip](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.4/SiliconLifeState-1.0.4-Windows-x64-Portable.zip) together with its matching SHA-256 list. Do **not** download only the SKILL ZIP or Chrome ZIP if you want the full local state service.
 2. Extract the whole ZIP; open `SiliconLifeState` and double-click `Start-Windows.cmd`. The complete Windows x64 ZIP bundles its own verified Python runtime and SQLite; no separate Python installation or network connection is required for local operation. Keep the startup terminal open.
 3. Open the dashboard, create a subject and at least one instance. Use the instance's host configuration wizard to connect a tool-capable AI via local MCP (stdio or HTTP). Model weights and paid API access are **not** bundled.
-4. If supported by your AI host, install the folder `packages/agent-skill/silicon-life-state` or extract [SiliconLifeState-1.0.3-Skill.zip](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Skill.zip). Skill instructions alone cannot persist data; MCP service and per-instance authorization are still required.
+4. If supported by your AI host, install the folder `packages/agent-skill/silicon-life-state` or extract [SiliconLifeState-1.0.4-Skill.zip](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.4/SiliconLifeState-1.0.4-Skill.zip). Skill instructions alone cannot persist data; MCP service and per-instance authorization are still required.
 5. Optional: open `chrome://extensions` in Chrome 116+, enable Developer Mode and load `apps/extension`. The extension observes only authorized visible web content. Use the pairing code issued by the local dashboard.
 
 ## Restore pairing and migrate

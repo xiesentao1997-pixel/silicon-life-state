@@ -117,8 +117,9 @@ def document():
     route("integrity", "get", "verifyDatabase", obj({"ok": BOOL, "events": INT, "errors": array(STRING)}))
     route("schema", "get", "ownerSchema", {"type": "object"})
     route("subjects", "get", "listSubjects", obj({"subjects": array(ref("Subject"))}))
-    route("subjects", "post", "createSubject", ref("Subject"), write({"name": ID}))
-    route("instances", "post", "createInstance", ref("Instance"), write({"subject_id": ID, "name": ID}))
+    route("subjects", "post", "createSubject", ref("Subject"), write({"name": ID},[]))
+    route("instances", "post", "createInstance", ref("Instance"), write({"subject_id": ID, "name": ID},["subject_id"]))
+    route("names/suggest","post","suggestName",{"type":"object"},write({"subject_id":ID,"instance_id":ID,"name":ID},["subject_id","name"]))
     route("subjects/rename","post","renameSubject",ref("Subject"),write({"subject_id":ID,"name":ID}))
     route("instances/rename","post","renameInstance",ref("Instance"),write({"instance_id":ID,"name":ID}))
     installation = obj({"installation_id":ID,"subject_id":ID,"host":ID,"active":BOOL,"created_at":DATE})
@@ -168,7 +169,7 @@ def document():
     route("restore", "post", "restoreBackup", obj({"restored": BOOL, "backup_id": ID}), write({"backup_id": ID}))
     route("delete", "post", "deleteData", obj({"deleted": BOOL, "purged_backups": INT}),
           {"oneOf": [deletion(scope) for scope in ("subject","session","all")]})
-    return {"openapi": "3.1.0", "info": {"title": "Silicon Life State · owner API", "version": "1.0.3"},
+    return {"openapi": "3.1.0", "info": {"title": "Silicon Life State · owner API", "version": "1.0.4"},
             "servers": [{"url": "/"}], "paths": paths,
             "components": {"schemas": schemas, "securitySchemes": {"installationBearer":{"type":"http","scheme":"bearer"},"ownerBearer": {"type": "http", "scheme": "bearer"},
                 "dashboardBinding":{"type":"apiKey","in":"header","name":"X-SLS-Dashboard",

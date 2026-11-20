@@ -32,7 +32,7 @@ from reconnect import bundle, endpoint_proof, existing_endpoint, publish_endpoin
 from packages.core.store import DomainError, Store
 from mcp_wire import error as rpc_error, handle_http
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 DEFAULT_PORT = 47831
 ASSETS = ROOT / "apps" / "dashboard"
 MAX_BYTES = 1024 * 1024
@@ -499,7 +499,7 @@ class Handler(BaseHTTPRequestHandler):
             raise AccessError(403,"DASHBOARD_REQUIRED","请从已配对的本机仪表盘管理安装授权。")
         actions = {"/api/installations": "issue_installation",
                    "/api/installations/revoke": "revoke_installation", "/api/installations/rotate": "rotate_installation",
-                   "/api/installations/restore": "restore_installation", "/api/subjects/rename": "rename_subject",
+                   "/api/names/suggest": "suggest_name", "/api/installations/restore": "restore_installation", "/api/subjects/rename": "rename_subject",
                    "/api/instances/rename": "rename_instance", "/api/subjects": "create_subject", "/api/instances": "create_instance",
                    "/api/credentials": "issue_agent", "/api/credentials/revoke": "revoke_agent",
                    "/api/level": "set_level", "/api/backup": "backup", "/api/restore": "restore"}

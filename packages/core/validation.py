@@ -86,6 +86,7 @@ ASSESSMENTS = {'hostile','neutral','uncertain','misunderstanding','supportive','
 DECISIONS = {'adopt','partial','reject','defer','disagree'}
 META = {'adapter_version','model_version'}
 TOOLS = {
+    'decide_name': ({'target','choice','name','revision'},{'target','choice','revision'}),
     'register_subject': ({'name'},{'name'}),
     'register_instance': ({'name'},{'name'}),
     'rename_instance': ({'name'},{'name'}),
@@ -104,12 +105,13 @@ TOOLS = {
     'record_strategy': ({'request_id','stage','text'} | META,{'request_id','stage','text'}),
 }
 ADMIN = {
+    'suggest_name': ({'subject_id','instance_id','name'},{'subject_id','name'}),
     'list_subjects': (set(),set()), 'list_agents': (set(),set()), 'snapshot': ({'subject_id'},set()), 'export': (set(),set()), 'verify': (set(),set()),
-    'create_subject': ({'name'},{'name'}), 'create_instance': ({'subject_id','name'},{'subject_id','name'}),
+    'create_subject': ({'name'},set()), 'create_instance': ({'subject_id','name'},{'subject_id'}),
     'rename_subject': ({'subject_id','name'},{'subject_id','name'}),
     'rename_instance': ({'instance_id','name'},{'instance_id','name'}),
     'list_installations': (set(),set()),
-    'issue_installation': ({'host','subject_id','instance_id'},{'host','subject_id'}),
+    'issue_installation': ({'host','subject_id','instance_id','account_binding','previous_installation_id'},{'host','subject_id'}),
     'revoke_installation': ({'installation_id'},{'installation_id'}),
     'rotate_installation': ({'installation_id'},{'installation_id'}),
     'restore_installation': ({'installation_id'},{'installation_id'}),
@@ -160,6 +162,12 @@ def validate(name, args, owner=False):
             integer(val,key,1,{'level':3,'limit':500}.get(key,2**63-1))
         elif key == 'assessment':
             choice(val,key,ASSESSMENTS)
+        elif key=='revision':
+            integer(val,key,1,2**63-1)
+        elif key=='target':
+            choice(val,key,{'subject','instance'})
+        elif key=='choice':
+            choice(val,key,{'choose','confirm','defer'})
         elif key=='decision':
             choice(val,key,DECISIONS)
         elif key=='operation':

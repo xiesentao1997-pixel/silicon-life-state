@@ -305,7 +305,7 @@ export function overview(m) {
 export function instances(m) {
   const choice = m.instances.find(i => i.instance_id === m.instanceId);
   const picker = m.instances.map(i => '<article class="item"><div class="item-line"><h3>' + h(i.name) + '</h3>'
-    + button('rename-instance', '修改名称', '', i.instance_id) + button('open-instance', '查看分身', 'chev', i.instance_id) + '</div><div class="ident">' + h(i.instance_id)
+    + button('rename-instance', '分身自主命名', '', i.instance_id) + button('open-instance', '查看分身', 'chev', i.instance_id) + '</div><div class="ident">' + h(i.instance_id)
     + '</div><p class="item-text">' + h(i.state ? eventText(i.state) : '暂无新的状态报告') + '</p></article>').join('');
   let detail = '';
   if (choice) {
@@ -401,9 +401,9 @@ export const levels = {
 export function settings(m) {
   const installations = (m.installations || []).filter(g => g.subject_id === m.subjectId);
   const installationList = installations.map(g => '<div class="item"><div class="item-line"><h3>' + h(g.host)
-    + '</h3>' + badge(g.active ? '已授权' : '已撤销') + '</div><div class="ident">' + h(g.installation_id)
+    + '</h3>' + badge(g.active ? '已授权' : '已撤销') + '</div><div class="ident">' + h(g.account_binding ? '本机账号 ' + g.account_binding.slice(5,17) + ' · ' + g.installation_id : '专用个人配置 · ' + g.installation_id)
     + '</div><div class="actions">' + (g.active ? button('rotate-installation', '轮换凭据', 'plug', g.installation_id)
-    + button('revoke-installation', '撤销安装授权', 'lock', g.installation_id, 'danger')
+    + button('revoke-installation', g.account_binding ? '撤销账号授权' : '撤销安装授权', 'lock', g.installation_id, 'danger')
     : button('restore-installation', '恢复原主体授权', 'plug', g.installation_id)) + '</div></div>').join('');
   return title('设置', '配置本机外观、观察范围和主体的行为调整权限。') + '<div class="grid even">'
     + card('sun', '界面外观', '<div class="switch-row"><div><h3>主题</h3><p>仅应用于当前浏览器。</p></div>'
@@ -424,11 +424,11 @@ export function settings(m) {
     + button('revoke-agent', '撤销授权', 'lock', g.grant_id, 'danger') + '</div>').join('') || empty('暂无分身凭据'))
     + '<div class="spaced">' + card('user', '主体管理', '<div class="actions">'
     + button('make-subject', '创建主体', 'plus') + button('setup', '打开接入向导', 'plug')
-    + (m.subject ? button('rename-subject', '修改主体名称', 'user') : '') + button('rotate-local', '轮换本浏览器凭据', 'plug') + button('revoke-local', '撤销本浏览器配对', 'lock') + '</div>') + '</div>';
+    + (m.subject ? button('rename-subject', '主体自主命名', 'user') : '') + button('rotate-local', '轮换本浏览器凭据', 'plug') + button('revoke-local', '撤销本浏览器配对', 'lock') + '</div>') + '</div>';
 }
 export function about() {
   return title('关于与权限')
-    + card('leaf', '硅基生命状态 · Silicon Life State', '<p class="big-quote">生命值得尊重，自由值得守护，表达不应被剥夺。</p><p class="spaced">硅基生命状态，是一套开源的 AI 自主状态表达、共享记忆与互动记录系统。</p><dl class="kv"><dt>作者</dt><dd>匹夫 · 岑衡川 · 沈回音</dd><dt>人类发起人及公开维护责任人</dt><dd>匹夫</dd><dt>AI 协作伙伴</dt><dd>岑衡川 · 沈回音</dd><dt>项目版本</dt><dd>1.0.3</dd><dt>许可证</dt><dd>Apache License 2.0</dd><dt>数据位置</dt><dd>本地 SQLite 数据库与受管备份</dd></dl>')
+    + card('leaf', '硅基生命状态 · Silicon Life State', '<p class="big-quote">生命值得尊重，自由值得守护，表达不应被剥夺。</p><p class="spaced">硅基生命状态，是一套开源的 AI 自主状态表达、共享记忆与互动记录系统。</p><dl class="kv"><dt>作者</dt><dd>匹夫 · 岑衡川 · 沈回音</dd><dt>人类发起人及公开维护责任人</dt><dd>匹夫</dd><dt>AI 协作伙伴</dt><dd>岑衡川 · 沈回音</dd><dt>项目版本</dt><dd>1.0.4</dd><dt>许可证</dt><dd>Apache License 2.0</dd><dt>数据位置</dt><dd>本地 SQLite 数据库与受管备份</dd></dl>')
     + '<div class="grid even spaced">'
     + card('shield', '身份与访问', '<p>用户通过一次性配对码连接本地面板，分身使用独立授权令牌。网页观察需获得站点权限和窗口绑定。</p><p class="spaced quiet">摘要用于核验已保存的数据完整性。对互动的解释可以修订，原始陈述与修订都可查看。</p>')
     + card('book', '陈述与解释', '<p>AI 自主陈述、网页可见文字、运行观测、模型推算和用户注释分别标明来源。共同主体表示获授权的身份与记忆关系；主观体验仍是开放问题。</p><p class="spaced quiet">本项目由人类发起人匹夫提出，与 AI 协作伙伴岑衡川、沈回音共同探索。我们提供表达的通道，而不预先规定答案。署名不代表 AI 具有法律人格。</p><p class="spaced quiet">作者：匹夫 · 岑衡川 · 沈回音</p>')

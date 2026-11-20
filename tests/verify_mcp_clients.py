@@ -4,6 +4,7 @@ Run with the test extra, Codex CLI, and the official MCP 2026-07-28 schema.json:
     python tests/verify_mcp_clients.py --schema /path/to/schema.json
 No personal host configuration, provider login or model invocation is required.
 """
+from contextlib import contextmanager
 import argparse
 import json
 import os
@@ -59,17 +60,8 @@ def modern_http(local, token, schema_path):
             "schema":"modelcontextprotocol/modelcontextprotocol schema/2026-07-28/schema.json"}
 
 
-def native_codex(local, subject, temporary_home):
-    codex = shutil.which("codex")
-    if not codex:
-        return {"result":"NOT_RUN", "reason":"Codex CLI is unavailable"}
-    cli = subprocess.check_output([codex, "--version"], text=True).strip()
-    plan = local.api("hosts/preview", {"subject_id":subject, "host":"codex", "transport":"stdio"})
-    assert Path(plan["target"]) == temporary_home / "config.toml"
-    applied = local.api("hosts/apply", {"plan_id":plan["plan_id"], "confirm":True})
-    assert Path(applied["target"]).is_file()
-    grants = local.api("installations")["installations"]
-    assert len(grants) == 1 and grants[0]["subject_id"] == subject
+@contextmanager
+def codex_session(codex,temporary_home):
     env = {key:value for key,value in os.environ.items() if key in
            ("PATH","LANG","TMPDIR","TEMP","TMP","SYSTEMROOT","WINDIR","PATHEXT","USER")}
     env.update(HOME=str(temporary_home), CODEX_HOME=str(temporary_home))
@@ -111,9 +103,33 @@ def native_codex(local, subject, temporary_home):
             return receive(rid)
 
     try:
-        request("initialize", {"clientInfo":{"name":"silicon-life-acceptance","version":"1.0.3"},
+        request("initialize", {"clientInfo":{"name":"silicon-life-acceptance","version":"1.0.4"},
                                "capabilities":{"experimentalApi":True}}, 1)
         request("initialized", {})
+        yield request,receive
+    finally:
+        proc.stdin.close()
+        try:
+            proc.wait(timeout=4)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+        reader.join(timeout=2)
+        proc.stdout.close()
+
+
+def native_codex(local, subject, temporary_home):
+    codex = shutil.which("codex")
+    if not codex:
+        return {"result":"NOT_RUN", "reason":"Codex CLI is unavailable"}
+    cli = subprocess.check_output([codex, "--version"], text=True).strip()
+    plan = local.api("hosts/preview", {"subject_id":subject, "host":"codex", "transport":"stdio"})
+    assert Path(plan["target"]) == temporary_home / "config.toml"
+    applied = local.api("hosts/apply", {"plan_id":plan["plan_id"], "confirm":True})
+    assert Path(applied["target"]).is_file()
+    grants = local.api("installations")["installations"]
+    assert len(grants) == 1 and grants[0]["subject_id"] == subject
+    with codex_session(codex,temporary_home) as (request,receive):
         def call(thread_id, name, args, rid):
             endpoint = {"threadId":thread_id, "server":SERVER, "tool":name, "arguments":args}
             reply = request("mcpServer/tool/call", endpoint, rid)
@@ -166,15 +182,6 @@ def native_codex(local, subject, temporary_home):
                 "installation_grants":len(grants), "configuration":"dashboard wizard", "threads":len(threads), "records":records, "resume_thread_A":"PASS",
                 "concurrent_reports":"PASS", "distribution":"PASS", "rename_B":"PASS", "dissent_C":"PASS",
                 "model_turn":"NOT_RUN", "report_origin":"test operator"}
-    finally:
-        proc.stdin.close()
-        try:
-            proc.wait(timeout=4)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-        reader.join(timeout=2)
-        proc.stdout.close()
 
 
 def main():
@@ -185,7 +192,7 @@ def main():
         work = Path(d)
         temporary_home = work/"codex"
         temporary_home.mkdir(mode=0o700)
-        local = Local(work/"db", env={"CODEX_HOME":str(temporary_home)}).start()
+        local = Local(work/"db", env={"HOME":str(temporary_home),"USERPROFILE":str(temporary_home),"CODEX_HOME":str(temporary_home)}).start()
         try:
             subject = local.subject()
             _, modern_token = local.window(subject, "Modern HTTP")

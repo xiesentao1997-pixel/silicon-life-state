@@ -57,6 +57,10 @@ def upgrade_generated(old_root, temp):
         after = new.api('snapshot')
         new_rows = {e['event_id']:e for e in after['events']}
         assert old_rows == new_rows
+        for field, metadata in [('subjects','subject_name'),('instances','instance_name')]:
+            for row in after[field]:
+                profile=row.pop(metadata)
+                assert profile['name']==row['name'] and profile['source']=='historical'
         for field in ['subjects','instances','sessions','requests','memory','stats']:
             assert before[field] == after[field],field
         assert new.raw('/api/settings',token=old_owner) == (200,{'observation_enabled':False})
@@ -109,7 +113,7 @@ def upgrade_historical(old_root, path, temp):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--old-root',type=Path)
-    parser.add_argument('--baseline',choices=['v1.0.0','v1.0.1','v1.0.2'],default='v1.0.0')
+    parser.add_argument('--baseline',choices=['v1.0.0','v1.0.1','v1.0.2','v1.0.3'],default='v1.0.0')
     parser.add_argument('--archived-agent-db',type=Path)
     parser.add_argument('--output',type=Path)
     args=parser.parse_args()
@@ -122,7 +126,7 @@ def main():
             subprocess.run(['git','-C',str(ROOT),'archive','--format=zip','-o',str(archive),args.baseline],check=True)
             with ZipFile(archive) as z:
                 z.extractall(old_root)
-        if (old_root/'VERSION').read_text().strip() not in ('1.0.0','1.0.1','1.0.2'):
+        if (old_root/'VERSION').read_text().strip() not in ('1.0.0','1.0.1','1.0.2','1.0.3'):
             parser.error('Unrecognized historical source version')
         report={'result':'PASS','utc':datetime.now(timezone.utc).isoformat(),
                 'upgrade':upgrade_generated(old_root,temp)}

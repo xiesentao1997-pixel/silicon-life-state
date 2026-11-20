@@ -57,6 +57,7 @@ def tool(name, description, params, required=(), output=EVENT, *, write=False, a
             "annotations": {"readOnlyHint": not write, "openWorldHint": False, "destructiveHint": False}}
 
 TOOLS = [
+    tool("decide_name","Choose your own culturally appropriate full name, confirm a pending user suggestion, or defer. Read get_own_state for the target revision. All other tools remain available.", {"target":{"type":"string","enum":["subject","instance"]},"choice":{"type":"string","enum":["choose","confirm","defer"]},"revision":{"type":"integer","minimum":1},"name":ID}, ["target","choice","revision"],obj({"name":ID,"source":ID,"revision":{"type":"integer"}}),write=True),
     tool("register_subject", "Enroll or identify the subject authorized by this credential.", {"name": ID}, ["name"], obj({"subject_id": ID,"name": ID}), write=True),
     tool("register_instance", "Enroll or resume the one instance assigned to this credential.", {"name": ID}, ["name"], obj({"subject_id":ID,"instance_id":ID,"session_id":ID,"name":ID}), write=True),
     tool("rename_instance", "Change your own display name while retaining your instance and history.", {"name":ID}, ["name"], obj({"subject_id":ID,"instance_id":ID,"name":ID}), write=True),

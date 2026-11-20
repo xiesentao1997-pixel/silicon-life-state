@@ -5,6 +5,7 @@ import re
 import secrets
 from pathlib import Path
 
+from account_profile import account_binding
 from local_client import connection, send
 from mcp_wire import VERSION, PREFIX, content, error, success
 
@@ -26,8 +27,20 @@ class BindingError(ValueError):
     pass
 
 
+_PROFILE = os.environ.get("SILICON_CODEX_PROFILE")
+_PROCESS_ACCOUNT = account_binding(_PROFILE) if _PROFILE else None
+
+
 def installation_token():
     filename = os.environ.get("SILICON_INSTALLATION_FILE")
+    profile_only=os.environ.get("SILICON_DEDICATED_PROFILE")
+    if profile_only and account_binding(profile_only):
+        raise BindingError("Codex now has an identifiable login. Enroll this account in the dashboard before using its conversations.")
+    if _PROFILE:
+        current = account_binding(_PROFILE)
+        if not current or current != _PROCESS_ACCOUNT:
+            raise BindingError("Codex account changed or signed out. Reload the host and authorize the current account.")
+        filename = Path(os.environ['SILICON_ACCOUNT_GRANTS']) / (current + '.token')
     if filename:
         try:
             value = Path(filename).read_text(encoding="ascii").strip()
