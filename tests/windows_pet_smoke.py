@@ -62,7 +62,10 @@ def main():
             u.SendMessageW(hwnd,0x200,1,point(75,40))
             u.SendMessageW(hwnd,0x202,0,point(75,40))
             assert position(hwnd) != old, "native window did not move on drag"
+            # WinForms raises MouseDoubleClick on the release of the second click.
             u.SendMessageW(hwnd,0x203,1,point(100,50))
+            u.SendMessageW(hwnd,0x202,0,point(100,50))
+            u.PostMessageW(hwnd,0x100,13,0)
             detail = until(lambda:u.FindWindowW(None,"硅基生命状态 · 原始记录"),"original records window")
             report = service.tool(agent,"report_state",state_text="Native desktop update")
             request = service.tool(agent,"request_adjustment",text="Please keep this original wording.")

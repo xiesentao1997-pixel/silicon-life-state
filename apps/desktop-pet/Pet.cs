@@ -114,11 +114,16 @@ class Pet : Form {
             if(moved || Math.Abs(dx)+Math.Abs(dy)>3) { moved=true; Location=new Point(dragOrigin.X+dx,dragOrigin.Y+dy); } } };
         MouseUp += (s,e) => { if(dragging) { dragging=false;Capture=false;if(moved){Preferences.Save("X",Left);Preferences.Save("Y",Top);} } };
         MouseDoubleClick += (s,e) => {if(e.Button==MouseButtons.Left) ShowDetails();};
-        KeyDown += (s,e) => { if(e.KeyCode==Keys.Escape) Hide(); if(e.KeyCode==Keys.Enter) ShowDetails(); };
+
         poll.Tick += async (s,e) => await RefreshFeed();
         Shown += async (s,e) => {poll.Start();await RefreshFeed();};
         FormClosed += (s,e) => {poll.Stop();tray.Visible=false;tray.Dispose();if(details!=null)details.Close();};
         BuildMenu();
+    }
+    protected override bool ProcessCmdKey(ref Message msg, Keys key) {
+        if(key==Keys.Escape) {Hide();return true;}
+        if(key==Keys.Enter) {ShowDetails();return true;}
+        return base.ProcessCmdKey(ref msg,key);
     }
     void ResizePet(int size) { scale=Math.Max(65,Math.Min(180,size)); Size=new Size(210*scale/100,142*scale/100); Invalidate(); }
     protected override void OnPaint(PaintEventArgs e) {
