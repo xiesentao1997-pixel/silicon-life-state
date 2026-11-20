@@ -33,7 +33,7 @@ from reconnect import bundle, endpoint_proof, existing_endpoint, publish_endpoin
 from packages.core.store import DomainError, Store
 from mcp_wire import error as rpc_error, handle_http
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 DEFAULT_PORT = 47831
 ASSETS = ROOT / "apps" / "dashboard"
 MAX_BYTES = 1024 * 1024
@@ -392,6 +392,8 @@ class Handler(BaseHTTPRequestHandler):
                 query = parse_qs(url.query, max_num_fields=2)
                 self.reply(200, feed(store, query.get("subject_id", [None])[0], query.get("instance_id", [None])[0]))
             elif path == "/api/pet/disconnect" and self.command == "POST":
+                if self.payload() != {}:
+                    raise AccessError(400, "INVALID_INPUT", "断开无需参数。")
                 access.revoke(token)
                 self.reply(200, {"revoked": True})
             else:
@@ -462,7 +464,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/revoke-pets":
             if origin != self.server.base_url:
                 raise AccessError(403, "DASHBOARD_REQUIRED", "请从本机仪表盘管理。")
-            return access.revoke_pets()
+            return access.revoke_pets(token, body.get("idempotency_key"))
         if path == "/api/pair/status":
             require_keys(body, {"code"})
             return access.code_status(body.get("code"))

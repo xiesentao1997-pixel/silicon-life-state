@@ -804,8 +804,8 @@ async function act(a, v) {
       break;
     case 'pair-pet': {
       const {code} = await write('pair/code', {target:'pet'});
-      capturedSecret = code;
       modal('桌宠只读配对', '<p>在桌宠右键菜单中选择「连接本地服务」，输入这个一次性配对码。10 分钟内有效。</p><pre>' + h(code) + '</pre>' + button('copy','复制配对码','copy'));
+      capturedSecret = code;
       break;
     }
     case 'revoke-pets':

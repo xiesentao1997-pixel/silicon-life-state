@@ -42,6 +42,11 @@ def upgrade_generated(old_root, temp):
             old.api('requests/' + request['event_id'] + '/respond', {'stage':stage,'text':'本次测试回应'})
         old.api('settings',{'observation_enabled':False})
         backup = old.api('backup',{})['backup_id']
+        host = None
+        if old.ready['version'] == '1.0.4':
+            host = old.api('installations',{'subject_id':subject,'host':'upgrade-fixture'})
+            status, binding = old.raw('/api/installations/bind',{'conversation_id':'existing'},host['token'])
+            assert status == 200
         before = old.api('snapshot')
         before_integrity = old.api('integrity')
         assert before_integrity['ok']
@@ -57,6 +62,9 @@ def upgrade_generated(old_root, temp):
         after = new.api('snapshot')
         new_rows = {e['event_id']:e for e in after['events']}
         assert old_rows == new_rows
+        if host:
+            status, restored = new.raw('/api/installations/bind',{'conversation_id':'existing'},host['token'])
+            assert status == 200 and restored == binding
         for field, metadata in [('subjects','subject_name'),('instances','instance_name')]:
             if before[field] and metadata in before[field][0]:
                 continue  # Named identities already exist in v1.0.4; compare the full records below.
@@ -80,6 +88,7 @@ def upgrade_generated(old_root, temp):
         assert new.api('integrity')['ok']
         return {'from_version':old.ready['version'],'to_version':new.ready['version'],
                 'unchanged_raw_events':len(new_rows),'unchanged_event_map_sha256':canonical_hash(new_rows),
+                'account_installation_and_bound_instance_restored':True if host else 'not_applicable',
                 'same_subjects_instances_sessions':True,'same_requests_memory_stats':True,
                 'old_owner_and_agent_credentials_work':True,'pending_extension_code_single_use':True,
                 'existing_managed_backup_listed':True,'new_event_continues_old_chain':True}
@@ -128,7 +137,7 @@ def main():
             subprocess.run(['git','-C',str(ROOT),'archive','--format=zip','-o',str(archive),args.baseline],check=True)
             with ZipFile(archive) as z:
                 z.extractall(old_root)
-        if (old_root/'VERSION').read_text().strip() not in ('1.0.0','1.0.1','1.0.2','1.0.3'):
+        if (old_root/'VERSION').read_text().strip() not in ('1.0.0','1.0.1','1.0.2','1.0.3','1.0.4'):
             parser.error('Unrecognized historical source version')
         report={'result':'PASS','utc':datetime.now(timezone.utc).isoformat(),
                 'upgrade':upgrade_generated(old_root,temp)}

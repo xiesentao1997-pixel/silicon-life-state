@@ -11,7 +11,7 @@ from mcp_wire import PREFIX, VERSION, error
 DEFAULT_URL = "http://127.0.0.1:47831/mcp"
 
 def meta(client="silicon-life-state-client"):
-    return {PREFIX+"protocolVersion":VERSION,PREFIX+"clientCapabilities":{},PREFIX+"clientInfo":{"name":client,"version":"1.0.4"}}
+    return {PREFIX+"protocolVersion":VERSION,PREFIX+"clientCapabilities":{},PREFIX+"clientInfo":{"name":client,"version":"1.0.5"}}
 
 def message(method, params=None, client="silicon-life-state-client"):
     return {"jsonrpc":"2.0","id":str(uuid.uuid4()),"method":method,"params":{"_meta":meta(client),**(params or {})}}

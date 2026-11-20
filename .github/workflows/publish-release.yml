@@ -3,22 +3,22 @@ on:
   push:
     branches: [main]
     paths: [VERSION]
-    tags: ['v1.0.4']
+    tags: ['v1.0.5']
   workflow_dispatch:
     inputs:
       tag:
         description: Existing main-line release tag
         type: choice
         required: true
-        options: [v1.0.4]
+        options: [v1.0.5]
 
 permissions:
   contents: read
 concurrency:
-  group: release-v1.0.4
+  group: release-v1.0.5
   cancel-in-progress: false
 env:
-  RELEASE_TAG: v1.0.4
+  RELEASE_TAG: v1.0.5
   PYTHONUTF8: '1'
 
 jobs:
@@ -45,8 +45,27 @@ jobs:
             git -c user.name=github-actions -c user.email=41898282+github-actions[bot]@users.noreply.github.com tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "Silicon Life State $RELEASE_TAG"
             git push origin "refs/tags/$RELEASE_TAG"
           fi
-  package:
+  native:
     needs: tag
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+      - name: Build the tagged native desktop executable
+        shell: cmd
+        run: |
+          call apps\desktop-pet\Install-Windows.cmd --no-start
+          if errorlevel 1 exit /b 1
+          copy "%LOCALAPPDATA%\SiliconLifeState\DesktopPet\SiliconLifePet.exe" SiliconLifePet.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pet-native
+          path: SiliconLifePet.exe
+          if-no-files-found: error
+  package:
+    needs: native
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,6 +79,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: pet-native
+          path: native
       - name: Build the verified tag and test the unpacked Linux service
         run: |
           test "$RELEASE_TAG" = "v$(cat VERSION)"
@@ -68,7 +91,7 @@ jobs:
           python -m unittest packages.core.test_invariants
           python -m pip install playwright
           SILICON_CHROMIUM="$(command -v google-chrome)" python tests/dashboard_extra_browser.py --naming-only
-          python scripts/build_release.py --ref "$RELEASE_TAG" --fetch-runtime --output dist
+          python scripts/build_release.py --ref "$RELEASE_TAG" --fetch-runtime --pet-exe native/SiliconLifePet.exe --output dist
           python scripts/smoke_release.py dist --tag "$RELEASE_TAG"
       - uses: actions/upload-artifact@v4
         with:
@@ -84,6 +107,11 @@ jobs:
         with:
           name: release-assets
           path: assets
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright
+      - run: python -m playwright install chromium
       - name: Run the same portable archive on Windows
         shell: pwsh
         run: |
@@ -91,11 +119,15 @@ jobs:
           Expand-Archive $zip.FullName -DestinationPath "$env:RUNNER_TEMP/release runner"
           $app = "$env:RUNNER_TEMP/release runner/SiliconLifeState"
           & "$app/runtime/python.exe" -I "$app/tests/windows_portable_smoke.py" | Tee-Object windows-smoke.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -X utf8 "$app/tests/windows_pet_smoke.py" --with-extension | Tee-Object pet-smoke.json
           exit $LASTEXITCODE
       - uses: actions/upload-artifact@v4
         with:
           name: windows-acceptance
-          path: windows-smoke.json
+          path: |
+            windows-smoke.json
+            pet-smoke.json
           if-no-files-found: error
           overwrite: true
   publish:

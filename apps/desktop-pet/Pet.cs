@@ -90,7 +90,7 @@ class Pet : Form {
     Form details;
     TextBox original;
     HashSet<string> seen;
-    string detailText = "";
+    string detailText = "", notifiedId = "";
     public Pet(LocalService api) {
         service = api;
         Text = "Silicon Life State Desktop Pet";
@@ -110,7 +110,11 @@ class Pet : Form {
         ContextMenuStrip = tray.ContextMenuStrip = menu;
         menu.Opening += (s,e) => BuildMenu();
         tray.DoubleClick += (s,e) => { Show(); Activate(); };
-        tray.BalloonTipClicked += (s,e) => ShowDetails();
+        tray.BalloonTipClicked += (s,e) => {
+            ShowDetails();
+            int index=original.Text.IndexOf(notifiedId,StringComparison.Ordinal);
+            if(index>=0 && notifiedId!=""){original.Select(index,notifiedId.Length);original.ScrollToCaret();}
+        };
         MouseDown += (s,e) => { if(e.Button==MouseButtons.Left) {dragging=true;moved=false;Capture=true;dragStart=PointToScreen(e.Location);dragOrigin=Location;} };
         MouseMove += (s,e) => { if(dragging) { var d=PointToScreen(e.Location); var dx=d.X-dragStart.X;var dy=d.Y-dragStart.Y;
             if(moved || Math.Abs(dx)+Math.Abs(dy)>3) { moved=true; Location=new Point(dragOrigin.X+dx,dragOrigin.Y+dy); } } };
@@ -156,7 +160,7 @@ class Pet : Form {
     }
     void SelectScope(string sid,string iid) {
         subject=sid;instance=iid;Preferences.Save("Subject",sid);Preferences.Save("Instance",iid);
-        seen=null;ClearView("正在读取");RefreshSoon();
+        seen=null;notifiedId="";ClearView("正在读取");RefreshSoon();
     }
     async void RefreshSoon() {await RefreshFeed();}
     void BuildMenu() {
@@ -241,8 +245,11 @@ class Pet : Form {
             }
             var updated=String.Join("\r\n\r\n",lines);
             if(detailText!=updated){detailText=updated;if(original!=null && !original.IsDisposed)original.Text=updated;}
-            if(seen!=null && Preferences.Read("Alerts","0")=="1" && data.requests.Any(r=>!seen.Contains(r.event_id)))
+            var newest=seen==null?null:data.requests.FirstOrDefault(r=>!seen.Contains(r.event_id));
+            if(newest!=null && Preferences.Read("Alerts","0")=="1"){
+                notifiedId=newest.event_id;
                 tray.ShowBalloonTip(3500,"硅基生命状态","分身有新的表达或请求。点击查看原文。",ToolTipIcon.Info);
+            }
             seen=new HashSet<string>(data.requests.Select(r=>r.event_id));
             Invalidate();
         } catch(WebException ex) {

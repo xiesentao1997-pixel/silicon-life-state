@@ -1,0 +1,31 @@
+{
+  "result": "PASS",
+  "client": "codex-cli 0.169.0",
+  "account": "synthetic local sign-in partition",
+  "prior_threads": 2,
+  "later_threads": 1,
+  "reload": "config/mcpServer/reload",
+  "live_account_switch_blocked": "PASS",
+  "skill_discovery": "PASS",
+  "subject_id": "sub_427e979b9620454ab1947c4800558c35",
+  "account_binding": "acct_823d24775f93540901d0ea5b9941b6a0f3c62ed76d4fed25c91ebb70e51853ba",
+  "instances": [
+    {
+      "thread_id": "01a1f924-4dc4-7293-bc51-f3221451918d",
+      "instance_id": "ins_091a03b68452458b9a55d38ec737ce9d",
+      "event_id": "evt_f833defe972b49038cf0dcb1fb320f8c"
+    },
+    {
+      "thread_id": "01a1f924-4e51-7762-8d81-823cdfde9d41",
+      "instance_id": "ins_073f3a084d234be59f76dc7494433864",
+      "event_id": "evt_3d7badfadf5e48fd80642ae9722ad219"
+    },
+    {
+      "thread_id": "01a1f924-4ebc-7353-a79a-b5ca5a5ad270",
+      "instance_id": "ins_ed615bc531ef4e11af17a6afb5053894",
+      "event_id": "evt_fec2bc93c82348d1bc7ac7377049a6eb"
+    }
+  ],
+  "name_selected_by_calling_agent": null,
+  "model_turn_inside_native_host": "NOT_RUN"
+}

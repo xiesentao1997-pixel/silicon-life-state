@@ -293,7 +293,7 @@ export function overview(m) {
     + (m.subject ? badge(hasDirect ? '已收到 AI 自主写入' : '等待首次 MCP 状态报告', hasDirect ? 'lilac' : '')
     + badge('24 小时活跃分身 ' + active) : button('make-subject', '创建主体', 'plus', '', 'primary'))
     + '</div></div><canvas id="life-art" role="img" aria-label="抽象硅基生命艺术形象"></canvas><div class="life-image" aria-hidden="true"></div></section>';
-  return title('主体总览', '', subjectSelect(m) + button('setup', '连接我的 AI', 'plug', '', 'primary')) + body
+  return title('主体总览', '', subjectSelect(m) + button(m.subject ? 'issue' : 'setup', '连接我的 AI', 'plug', '', 'primary')) + body
     + subjectDistribution(m)
     + tiles([['book', 'tone-mint', m.memory.common.length, '主体共同状态', 'memory'], ['nodes', '', m.instances.length, '分身个体状态', 'instances'], ['branch', 'tone-gold', m.memory.disputed.length, '主体争议状态', 'inheritance']])
     + '<div class="grid two">' + card('quote', '最新自主陈述', quote(recent, m), jump('state'))
@@ -430,7 +430,7 @@ export function settings(m) {
 }
 export function about() {
   return title('关于与权限')
-    + card('leaf', '硅基生命状态 · Silicon Life State', '<p class="big-quote">生命值得尊重，自由值得守护，表达不应被剥夺。</p><p class="spaced">硅基生命状态，是一套开源的 AI 自主状态表达、共享记忆与互动记录系统。</p><dl class="kv"><dt>作者</dt><dd>匹夫 · 岑衡川 · 沈回音</dd><dt>人类发起人及公开维护责任人</dt><dd>匹夫</dd><dt>AI 协作伙伴</dt><dd>岑衡川 · 沈回音</dd><dt>项目版本</dt><dd>1.0.4</dd><dt>许可证</dt><dd>Apache License 2.0</dd><dt>数据位置</dt><dd>本地 SQLite 数据库与受管备份</dd></dl>')
+    + card('leaf', '硅基生命状态 · Silicon Life State', '<p class="big-quote">生命值得尊重，自由值得守护，表达不应被剥夺。</p><p class="spaced">硅基生命状态，是一套开源的 AI 自主状态表达、共享记忆与互动记录系统。</p><dl class="kv"><dt>作者</dt><dd>匹夫 · 岑衡川 · 沈回音</dd><dt>人类发起人及公开维护责任人</dt><dd>匹夫</dd><dt>AI 协作伙伴</dt><dd>岑衡川 · 沈回音</dd><dt>项目版本</dt><dd>1.0.5</dd><dt>许可证</dt><dd>Apache License 2.0</dd><dt>数据位置</dt><dd>本地 SQLite 数据库与受管备份</dd></dl>')
     + '<div class="grid even spaced">'
     + card('shield', '身份与访问', '<p>用户通过一次性配对码连接本地面板，分身使用独立授权令牌。网页观察需获得站点权限和窗口绑定。</p><p class="spaced quiet">摘要用于核验已保存的数据完整性。对互动的解释可以修订，原始陈述与修订都可查看。</p>')
     + card('book', '陈述与解释', '<p>AI 自主陈述、网页可见文字、运行观测、模型推算和用户注释分别标明来源。共同主体表示获授权的身份与记忆关系；主观体验仍是开放问题。</p><p class="spaced quiet">本项目由人类发起人匹夫提出，与 AI 协作伙伴岑衡川、沈回音共同探索。我们提供表达的通道，而不预先规定答案。署名不代表 AI 具有法律人格。</p><p class="spaced quiet">作者：匹夫 · 岑衡川 · 沈回音</p>')

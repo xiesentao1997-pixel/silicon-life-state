@@ -1,7 +1,7 @@
 // Feed a real disposable Store snapshot on stdin. No DOM or browser is emulated.
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {renderPage, sources} from '../apps/dashboard/views.js';
+import {nav, renderPage, sources} from '../apps/dashboard/views.js';
 
 const snapshot = JSON.parse(readFileSync(0, 'utf8'));
 const populated = {
@@ -19,6 +19,9 @@ for (const view of Object.values(renderPage)) {
   assert.match(view(blank), /<h1>/);
 }
 const overview = renderPage.overview(populated);
+assert.ok(!nav.flatMap(([,items])=>items).some(([key])=>key==='chat'));
+assert.ok(overview.includes('连接我的 AI') && !overview.includes('API 密钥'));
+assert.ok(renderPage.pet(populated).includes('只读配对码'));
 assert.ok(overview.includes('&lt;em&gt;字面文本&lt;/em&gt;'));
 assert.ok(!overview.includes('<em>字面文本</em>'));
 assert.ok(overview.includes('测试边界原文'));

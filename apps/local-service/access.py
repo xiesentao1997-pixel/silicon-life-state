@@ -213,12 +213,14 @@ class Access:
                 register_uninstall(db, replacement, origin)
         return replacement
 
-    def revoke_pets(self):
+    def revoke_pets(self, owner, key):
         with self.connect() as db, db:
             db.execute("BEGIN IMMEDIATE")
-            count = db.execute("DELETE FROM clients WHERE origin='desktop-pet'").rowcount
+            if not self.record_intent(db, owner, key, "revoke_pets", ""):
+                return {"revoked": True}
+            db.execute("DELETE FROM clients WHERE origin='desktop-pet'")
             db.execute("DELETE FROM codes WHERE target='pet'")
-        return {"revoked": count}
+        return {"revoked": True}
 
     def revoke(self, token):
         with self.connect() as db:

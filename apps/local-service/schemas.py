@@ -26,7 +26,7 @@ ID = {"type": "string", "minLength": 1, "maxLength": 256}
 DATE = {"type": "string", "format": "date-time"}
 TEXT = {"type": "string", "minLength": 1, "maxLength": 16000}
 STAGES = enum("PRESENTED", "ACCEPTED", "DECLINED", "DEFERRED", "EXECUTED", "NOT_EXECUTED", "FOLLOW_UP")
-TARGET = enum("dashboard", "extension")
+TARGET = enum("dashboard", "extension", "pet")
 SOURCES = enum("agent_visible_text", "agent_direct", "user_annotation", "model_estimated", "runtime_observed")
 
 
@@ -91,6 +91,17 @@ def document():
     route("browser/upgrade", "post", "upgradeLegacyBrowser", browser_reply, obj({}, strict=True))["security"] = [{"ownerBearer":[]}]
     route("browser/session", "get", "renewDashboardCookie", browser_reply)["security"] = dashboard_auth
     route("pair/rotate", "post", "rotateBrowserCredential", {"oneOf":[browser_reply,obj({"token":STRING})]}, obj({}, strict=True))
+    route("pet/pair","post","pairDesktopReader",obj({"token":STRING,"expires_in":{"type":"null"},"role":{"const":"reader"}}),
+          obj({"code":STRING},strict=True),public=True)
+    event = obj({"event_id":ID,"type":STRING,"source":SOURCES,"text":STRING,"seq":INT,
+                 "created_at":DATE,"instance_id":ID,"subject_id":ID,"revision_id":{"type":["string","null"]},"payload":{"type":"object"}})
+    identities = array(obj({"id":ID,"name":STRING}))
+    read = route("pet/feed","get","readDesktopRecords",obj({"subject_id":{"type":["string","null"]},
+        "subjects":identities,"instances":identities,**{k:array(event) for k in ("states","requests","observations","shared")}}))
+    read["parameters"] = [{"name":k,"in":"query","required":False,"schema":ID} for k in ("subject_id","instance_id")]
+    read["security"] = [{"petBearer":[]}]
+    route("pet/disconnect","post","retireDesktopReader",obj({"revoked":BOOL}),obj({},strict=True))["security"] = [{"petBearer":[]}]
+    route("revoke-pets","post","retireAllDesktopReaders",obj({"revoked":BOOL}),write())
     route("extension/uninstalled", "post", "retireUninstalledExtension", obj({"revoked":BOOL}),
           obj({"ticket":{"type":"string","pattern":"^[0-9a-f]{64}$"}}, strict=True), public=True)
     route("pair/code", "post", "createPairCode", obj({"code": STRING, "expires_in": INT, "expires_at": DATE, "server_time": DATE, "target": TARGET}),
@@ -169,9 +180,9 @@ def document():
     route("restore", "post", "restoreBackup", obj({"restored": BOOL, "backup_id": ID}), write({"backup_id": ID}))
     route("delete", "post", "deleteData", obj({"deleted": BOOL, "purged_backups": INT}),
           {"oneOf": [deletion(scope) for scope in ("subject","session","all")]})
-    return {"openapi": "3.1.0", "info": {"title": "Silicon Life State · owner API", "version": "1.0.4"},
+    return {"openapi": "3.1.0", "info": {"title": "Silicon Life State · owner API", "version": "1.0.5"},
             "servers": [{"url": "/"}], "paths": paths,
-            "components": {"schemas": schemas, "securitySchemes": {"installationBearer":{"type":"http","scheme":"bearer"},"ownerBearer": {"type": "http", "scheme": "bearer"},
+            "components": {"schemas": schemas, "securitySchemes": {"petBearer":{"type":"http","scheme":"bearer"},"installationBearer":{"type":"http","scheme":"bearer"},"ownerBearer": {"type": "http", "scheme": "bearer"},
                 "dashboardBinding":{"type":"apiKey","in":"header","name":"X-SLS-Dashboard",
                     "description":"Requires the matching HttpOnly sls_dashboard_<service port> cookie and same-origin POST."}}},
             "security": [{"ownerBearer": []}, *dashboard_auth]}

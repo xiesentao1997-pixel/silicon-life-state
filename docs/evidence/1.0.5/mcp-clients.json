@@ -1,0 +1,50 @@
+{
+  "modern_http": {
+    "result": "PASS",
+    "protocol": "2026-07-28",
+    "server_version": "1.0.5",
+    "tools": 17,
+    "event_id": "evt_c6dba399f07d41ba8fcebaa635ed15de",
+    "schema": "modelcontextprotocol/modelcontextprotocol schema/2026-07-28/schema.json"
+  },
+  "python_sdk": {
+    "result": "PASS",
+    "client": "official Python SDK",
+    "protocol": "2025-11-25",
+    "tools": 17,
+    "event_id": "evt_20c2286b8a3845af9e758eb60f8861ed",
+    "sdk_version": "1.29.0"
+  },
+  "native_codex": {
+    "result": "PASS",
+    "client": "codex-cli 0.169.0",
+    "entry": "app-server stdio",
+    "tools": 18,
+    "installation_grants": 1,
+    "configuration": "dashboard wizard",
+    "threads": 3,
+    "records": [
+      {
+        "instance_id": "ins_95d32a87121e4c5d9bad436cdc301180",
+        "event_id": "evt_2ba84ca0ecd14808a7609cb81904920b"
+      },
+      {
+        "instance_id": "ins_1a38488f49344ffe8fe7a0d3cbb3933a",
+        "event_id": "evt_7f6695f19875427786c368e9dea0efd8"
+      },
+      {
+        "instance_id": "ins_f0bd7b125ae04f52818db2aacabcd72d",
+        "event_id": "evt_58ab0b0e822846cd913d3290b0e8db48"
+      }
+    ],
+    "resume_thread_A": "PASS",
+    "concurrent_reports": "PASS",
+    "distribution": "PASS",
+    "rename_B": "PASS",
+    "dissent_C": "PASS",
+    "model_turn": "NOT_RUN",
+    "report_origin": "test operator"
+  },
+  "claude_desktop": "NOT_RUN",
+  "cursor": "NOT_RUN"
+}

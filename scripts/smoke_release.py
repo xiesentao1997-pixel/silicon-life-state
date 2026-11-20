@@ -134,7 +134,7 @@ def main():
             assert sha256((tree / name).read_bytes()) == digest, name
         version = (tree / "VERSION").read_text().strip()
         prefix = f"SiliconLifeState-{version}"
-        component_names = {prefix + suffix for suffix in ("-Source.zip", "-Chrome.zip", "-Skill.zip", "-Local-Service.zip", "-Windows-x64-Portable.zip")}
+        component_names = {prefix + suffix for suffix in ("-Desktop-Pet-Setup.zip", "-Source.zip", "-Chrome.zip", "-Skill.zip", "-Local-Service.zip", "-Windows-x64-Portable.zip")}
         assert component_names == {p.name for p in release.glob("*.zip")}, "Missing or mixed-version component ZIPs"
         with ZipFile(release / f"{prefix}-Source.zip") as source:
             members = set(source.namelist())
@@ -146,6 +146,12 @@ def main():
         for output, source in (("RELEASE-NOTES.md", f"RELEASE-{version}.md"), ("RELEASE-AUDIT.md", f"RELEASE-AUDIT-{version}.md")):
             assert (release / output).read_bytes() == (tree / "docs" / source).read_bytes(), output
         check_tree(tree, tmp / "first")
+        with ZipFile(release / f"{prefix}-Desktop-Pet-Setup.zip") as pet:
+            names = {name.removeprefix("apps/desktop-pet/") for name in listed if name.startswith("apps/desktop-pet/")}
+            assert set(pet.namelist()) == names | {"SiliconLifePet.exe","LICENSE.txt","NOTICE"}
+            for name in names | {"SiliconLifePet.exe"}:
+                assert pet.read(name) == (tree / "apps/desktop-pet" / name).read_bytes()
+            assert pet.read("LICENSE.txt") == (tree / "LICENSE").read_bytes() and pet.read("NOTICE") == (tree / "NOTICE").read_bytes()
         chrome_members = verify_component(release / f"{prefix}-Chrome.zip", tree, listed, "apps/extension/")
         skill_members = verify_component(release / f"{prefix}-Skill.zip", tree, listed, "packages/agent-skill/", "silicon-life-state/")
         with ZipFile(next(release.glob("*-Local-Service.zip"))) as archive:

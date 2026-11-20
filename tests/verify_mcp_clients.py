@@ -103,7 +103,7 @@ def codex_session(codex,temporary_home):
             return receive(rid)
 
     try:
-        request("initialize", {"clientInfo":{"name":"silicon-life-acceptance","version":"1.0.4"},
+        request("initialize", {"clientInfo":{"name":"silicon-life-acceptance","version":"1.0.5"},
                                "capabilities":{"experimentalApi":True}}, 1)
         request("initialized", {})
         yield request,receive

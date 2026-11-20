@@ -6,6 +6,7 @@ const pinned = /^\d+$/.test(params.get('tab') || '') ? Number(params.get('tab'))
 const mini = params.get('mode') === 'mini';
 document.body.classList.toggle('mini', mini);
 let tabId, binding, data, observationEnabled = false, preview, locked = false, serial = 0;
+let reportVersion;
 let lastSubjectKey, lastInstanceKey, lastRequestKey, lastEventKey, lastTab;
 const formatTime = value => value ? new Date(value).toLocaleString('zh-CN', {hour12:false}) : '';
 function el(tag, value, className) {
@@ -148,6 +149,10 @@ function render(tab) {
   $('subject-name').textContent = subject ? '主体 · ' + subject.name : '当前分身';
   $('state-text').textContent = instance ? (instance.state ? textOf(instance.state) : '暂无新的状态报告。') : '绑定后显示这个分身的自主陈述。';
   $('state-meta').textContent = instance?.state ? (sourceName[instance.state.source] || instance.state.source) + ' · ' + formatTime(instance.state.created_at) + ' · ' + instance.state.event_id : '';
+  const version = instance?.state?.revision_id || instance?.state?.event_id || '';
+  if (newTab) $('report-update').textContent = '';
+  else if (version !== reportVersion) $('report-update').textContent = version ? '收到新的分身报告或修订' : '';
+  reportVersion = version;
   const shared = (data.memory?.proposals || []).filter(e => e.subject_id === subject?.subject_id);
   $('shared').replaceChildren(...(shared.length ? shared.slice(0,20).map(e => el('li',textOf(e) + ' · ' + e.event_id)) : [el('li','暂无共享记录')]));
   $('unbind').disabled = !binding;

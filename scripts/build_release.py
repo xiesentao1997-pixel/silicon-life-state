@@ -57,6 +57,7 @@ def main():
                         help="Fetch the pinned Python.org archive if absent")
     parser.add_argument("--runtime-from-baseline", type=Path, default=None,
                         help="Offline: reuse byte-verified 1.0.1 complete Windows portable ZIP runtime")
+    parser.add_argument("--pet-exe", type=Path, required=True, help="Windows CI build of apps/desktop-pet/Pet.cs from the same checkout")
     args = parser.parse_args()
     sha = git("rev-parse", "--verify", args.ref + "^{commit}").decode().strip()
     version = git("show", sha + ":VERSION").decode().strip()
@@ -109,6 +110,12 @@ def main():
     extension["LICENSE.txt"] = files["LICENSE"]
     extension["NOTICE"] = files["NOTICE"]
     component_files[f"{prefix}-Chrome.zip"] = archive(extension)
+    pet = {k.removeprefix("apps/desktop-pet/"): v for k, v in files.items() if k.startswith("apps/desktop-pet/")}
+    pet_exe = args.pet_exe.read_bytes()
+    if not pet_exe.startswith(b"MZ"):
+        parser.error("Desktop pet requires a compiled Windows executable")
+    pet.update({"LICENSE.txt": files["LICENSE"], "NOTICE": files["NOTICE"], "SiliconLifePet.exe": pet_exe})
+    component_files[f"{prefix}-Desktop-Pet-Setup.zip"] = archive(pet)
     skill = {k.removeprefix("packages/agent-skill/"): v for k, v in files.items() if k.startswith("packages/agent-skill/")}
     skill["silicon-life-state/LICENSE.txt"] = files["LICENSE"]
     skill["silicon-life-state/NOTICE"] = files["NOTICE"]
@@ -128,6 +135,7 @@ def main():
         bundle = Path(temp_dir) / "SiliconLifeState.git.bundle"
         make_bundle(sha, bundle, temp_dir)
         kit = {**files, **runtime, **{f"release/{k}": v for k, v in component_files.items()}}
+        kit["apps/desktop-pet/SiliconLifePet.exe"] = pet_exe
         kit["release/" + bundle.name] = bundle.read_bytes()
         kit["release/SHA256SUMS.txt"] = checksum({k.removeprefix("release/"):v for k,v in kit.items() if k.startswith("release/")})
         products = {f"{prefix}-Windows-x64-Portable.zip": archive(kit, "SiliconLifeState/"), **component_files}

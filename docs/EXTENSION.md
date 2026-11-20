@@ -54,3 +54,7 @@ Chrome 本地扩展存储仅供受信任的扩展页面使用，保存本机配�
 - **独立浏览器用例**　`python tests/extension_browser.py --adapters-only` 在真实渲染引擎读取三个站点的离线页面样例。`python tests/extension_browser.py --sidebar-fixture` 用正式侧栏代码、真实本地服务和测试用 Chrome API 适配层验证呈现与回应。两项结果均与实际安装验收分列。
 
 参考 [Chrome Side Panel](https://developer.chrome.com/docs/extensions/reference/api/sidePanel) 与 [Chrome Web Store 项目政策](https://developer.chrome.com/docs/webstore/program-policies/policies)。
+
+## 悬浮入口与共享记录
+
+侧栏的「保存网页可见陈述」支持为选定站点启用悬浮入口。授权后按钮会出现在该站点现有及新打开的页面；点击打开状态侧栏。关闭入口后移除按钮。按钮不扫描聊天内容。侧栏中的最近报告显示原始事件 ID，主体共享历史只列出已经共享的记录。启用扩展通知后，新报告和待处理请求可以显示系统提醒。
