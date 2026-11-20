@@ -121,6 +121,8 @@ async function permissionState() {
   const spec = SITE[$('site').value];
   const allowed = await chrome.permissions.contains({origins: [spec.origin + '/*']});
   $('site-status').textContent = allowed ? '此站点已授权 · 仅在点击预览时读取选区' : '尚未授权此站点';
+  const scripts = await chrome.scripting?.getRegisteredContentScripts?.({ids:['sls-entry-' + $('site').value]}) || [];
+  $('floating').textContent = scripts.length ? '关闭此站点的悬浮入口' : '启用此站点的悬浮入口';
   $('grant').disabled = allowed;
   $('revoke').disabled = !allowed;
   $('preview').disabled = !allowed || !binding || !observationEnabled;
@@ -145,7 +147,9 @@ function render(tab) {
   $('instance-name').textContent = instance?.name || '选择窗口绑定';
   $('subject-name').textContent = subject ? '主体 · ' + subject.name : '当前分身';
   $('state-text').textContent = instance ? (instance.state ? textOf(instance.state) : '暂无新的状态报告。') : '绑定后显示这个分身的自主陈述。';
-  $('state-meta').textContent = instance?.state ? (sourceName[instance.state.source] || instance.state.source) + ' · ' + formatTime(instance.state.created_at) : '';
+  $('state-meta').textContent = instance?.state ? (sourceName[instance.state.source] || instance.state.source) + ' · ' + formatTime(instance.state.created_at) + ' · ' + instance.state.event_id : '';
+  const shared = (data.memory?.proposals || []).filter(e => e.subject_id === subject?.subject_id);
+  $('shared').replaceChildren(...(shared.length ? shared.slice(0,20).map(e => el('li',textOf(e) + ' · ' + e.event_id)) : [el('li','暂无共享记录')]));
   $('unbind').disabled = !binding;
   $('open-mini').disabled = !binding;
   const events = instance ? data.events.filter(e => e.instance_id === instance.instance_id) : [];
@@ -264,6 +268,8 @@ click('grant',async () => {
   notice(allowed ? '已获得所选站点权限，请为当前对话确认分身绑定。' : '未授予站点权限。');
 });
 click('revoke',async () => {
+  const site = $('site').value;
+  if ((await chrome.scripting.getRegisteredContentScripts({ids:['sls-entry-' + site]})).length) await floating(site,false);
   await chrome.permissions.remove({origins:[SITE[$('site').value].origin + '/*']});
   cancelPreview(); notice('已撤销所选站点权限。');
 });
@@ -301,6 +307,23 @@ click('save-observation',async () => {
   await localApi('observations',{body:{source:'agent_visible_text',instance_id:copy.instance_id,
     text:copy.text,adapter:copy.adapter,adapter_version:chrome.runtime.getManifest().version,idempotency_key:copy.idempotency_key}});
   cancelPreview(); notice('已保存为网页可见陈述。');
+});
+async function floating(site, enable) {
+  const match = SITE[site].origin + '/*', id = 'sls-entry-' + site;
+  if (enable) {
+    if (!await chrome.permissions.request({origins:[match]})) return;
+    await chrome.scripting.registerContentScripts([{id,matches:[match],js:['floating.js'],runAt:'document_idle'}]);
+  } else {
+    await chrome.scripting.unregisterContentScripts({ids:[id]});
+  }
+  const tabs = await chrome.tabs.query({url:match});
+  await Promise.allSettled(tabs.map(tab => chrome.scripting.executeScript(enable
+    ? {target:{tabId:tab.id},files:['floating.js']}
+    : {target:{tabId:tab.id},func:() => document.getElementById('silicon-life-state-entry')?.remove()})));
+}
+click('floating', async () => {
+  const site = $('site').value;
+  await floating(site, !$('floating').textContent.startsWith('关闭'));
 });
 click('pause',async () => {
   await localApi('settings',{body:{observation_enabled:!observationEnabled,idempotency_key:key()}});

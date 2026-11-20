@@ -21,12 +21,17 @@ async function updateRequests() {
     return;
   }
   try {
-    const {requests} = await localApi('snapshot');
+    const {requests,events} = await localApi('snapshot');
+    const report = events.find(e => e.source === 'agent_direct' && ['report_state','revise_state'].includes(e.type));
+    const {lastReport} = await chrome.storage.local.get('lastReport');
+    const newReport = lastReport !== undefined && report && report.seq > lastReport;
+    await chrome.storage.local.set({lastReport: report?.seq || 0});
     const pending = requests.filter(row => row.stage === 'CREATED' || row.stage === 'PRESENTED');
-    await chrome.action.setBadgeText({text: pending.length ? String(pending.length) : ''});
+    await chrome.action.setBadgeText({text: pending.length ? String(pending.length) : newReport ? '新' : ''});
     await chrome.action.setBadgeBackgroundColor({color: '#72558a'});
     if (!(await chrome.permissions.contains({permissions:['notifications']}))) return;
     const {seen = []} = await chrome.storage.session.get('seen');
+    if (newReport) await chrome.notifications.create('sls-report', {type:'basic', iconUrl:'icons/orbit128.png', title:'硅基生命状态', message:'有新的分身状态记录。'});
     if (pending.some(row => !seen.includes(row.request_id))) {
       await chrome.notifications.create('sls-requests', {
         type: 'basic', iconUrl: 'icons/orbit128.png', title: '硅基生命状态',
@@ -49,7 +54,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 function onNotification(id) {
-  if (id !== 'sls-requests') return;
+  if (!['sls-requests','sls-report'].includes(id)) return;
   launchDashboard().catch(() => chrome.tabs.create({url: chrome.runtime.getURL('panel.html')}));
 }
 function observeNotificationClicks() {
@@ -100,6 +105,10 @@ async function bindChatTab({action, tabId, binding}) {
   await chrome.storage.session.set({[destination]: record});
 }
 chrome.runtime.onMessage.addListener((message, sender, reply) => {
+  if (message?.action === 'open-status-panel' && sender.id === chrome.runtime.id &&
+      sender.tab && sender.frameId === 0 && /^https:\/\/(chatgpt\.com|claude\.ai|gemini\.google\.com)\//.test(sender.url || '')) {
+    chrome.sidePanel.open({tabId:sender.tab.id}).catch(console.warn);
+  }
   if (sender.id !== chrome.runtime.id || sender.url?.split(/[?#]/)[0] !== chrome.runtime.getURL('panel.html') ||
       !['bind-tab','unbind-tab'].includes(message?.action)) return false;
   pendingBindings = pendingBindings.then(() => bindChatTab(message)).then(

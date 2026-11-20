@@ -6,11 +6,12 @@ export const h = v => String(v ?? '').replace(/[&<>"']/g, c => ({
   '"': '&quot;',
   "'": '&#39;'
 })[c]);
-export const nav = [['观测空间', [['overview', 'home', '主体总览'], ['chat', 'message', '与 AI 对话'], ['instances', 'nodes', '分身管理'], ['state', 'pulse', '生命状态']]], ['历史与协商', [['memory', 'book', '主体记忆库'], ['events', 'history', '事件与证据'], ['inheritance', 'branch', '继承与协商'], ['requests', 'message', '请求与响应']]], ['本地管理', [['statistics', 'chart', '数据统计'], ['backup', 'archive', '导出与备份'], ['settings', 'settings', '设置'], ['about', 'shield', '关于与权限']]]];
+export const nav = [['观测空间', [['overview', 'home', '主体总览'], ['instances', 'nodes', '我的 AI 与分身'], ['state', 'pulse', '生命状态']]], ['历史与协商', [['memory', 'book', '共同记忆'], ['events', 'history', '事件与证据'], ['inheritance', 'branch', '继承与协商'], ['requests', 'message', '表达与请求']]], ['本地管理', [['statistics', 'chart', '数据统计'], ['backup', 'archive', '数据与备份'], ['extension', 'plug', '浏览器插件'], ['pet', 'leaf', '桌宠设置'], ['settings', 'settings', '设置'], ['about', 'shield', '关于与权限']]]];
 export const pages = Object.fromEntries(nav.flatMap(([, items]) => items.map(([key, ico, title]) => [key, {
   ico,
   title
 }])));
+pages.chat = {ico:'message', title:'开发者工具 · 模型调用测试'};
 export const sources = {
   agent_direct: ['AI 通过 MCP 自主填写', 'lilac'],
   agent_visible_text: ['网页可见陈述', 'gold'],
@@ -292,7 +293,7 @@ export function overview(m) {
     + (m.subject ? badge(hasDirect ? '已收到 AI 自主写入' : '等待首次 MCP 状态报告', hasDirect ? 'lilac' : '')
     + badge('24 小时活跃分身 ' + active) : button('make-subject', '创建主体', 'plus', '', 'primary'))
     + '</div></div><canvas id="life-art" role="img" aria-label="抽象硅基生命艺术形象"></canvas><div class="life-image" aria-hidden="true"></div></section>';
-  return title('主体总览', '', subjectSelect(m) + button('setup', '接入向导', 'plug')) + body
+  return title('主体总览', '', subjectSelect(m) + button('setup', '连接我的 AI', 'plug', '', 'primary')) + body
     + subjectDistribution(m)
     + tiles([['book', 'tone-mint', m.memory.common.length, '主体共同状态', 'memory'], ['nodes', '', m.instances.length, '分身个体状态', 'instances'], ['branch', 'tone-gold', m.memory.disputed.length, '主体争议状态', 'inheritance']])
     + '<div class="grid two">' + card('quote', '最新自主陈述', quote(recent, m), jump('state'))
@@ -319,7 +320,7 @@ export function instances(m) {
       + card('book', '该分身提议共享的记录', list(shared, m)) + card('branch', '该分身的继承与协商', list(decided, m))
       + card('history', '独立历史', list(own, m));
   }
-  return title('分身管理', '每个窗口独立提交状态，并自行决定如何使用共同记忆。', subjectSelect(m)
+  return title('我的 AI 与分身', '每个窗口独立提交状态，并自行决定如何使用共同记忆。', subjectSelect(m)
     + button('make-instance', '创建分身', 'plus', '', 'primary')) + '<div class="grid even">'
     + card('globe', '主体关系', relation(m)) + card('nodes', '授权分身', picker || empty('尚无分身'))
     + '</div><div class="stack">' + detail + '</div>';
@@ -335,7 +336,7 @@ export function state(m) {
     + '</section>';
 }
 export function memory(m) {
-  return title('主体记忆库', '分身提议共享后，其他分身可以阅读并保留自己的判断。', subjectSelect(m)) + '<div class="grid even">'
+  return title('共同记忆', '分身提议共享后，其他分身可以阅读并保留自己的判断。', subjectSelect(m)) + '<div class="grid even">'
     + card('book', '已采纳的共同报告', list(m.memory.common, m, 100, '暂无已采纳的共同报告'))
     + card('branch', '存在分歧的报告', list(m.memory.disputed, m, 100, '暂无有分歧的共享报告')) + '</div>'
     + card('file', '当前有效的共享报告', list(m.subject_summaries?.find(s => s.subject_id === m.subjectId)?.current_reports || [], m, Infinity, '暂无有效共享报告'))
@@ -358,7 +359,7 @@ export function events(m) {
     + (matches.length > m.eventLimit ? button('more', '加载更多') : ''));
 }
 export function requests(m) {
-  return title('请求与响应', '分别查看分身的表达、用户决定、宿主执行和后续跟进。', instanceSelect(m))
+  return title('表达与请求', '分别查看分身的表达、用户决定、宿主执行和后续跟进。', instanceSelect(m))
     + card('message', '请求记录', '<div class="tool-row">'
     + select('stage', [['', '全部阶段'], ...Object.entries(stages)], m.stage, '请求阶段') + '</div>'
     + reqList(m.requests.filter(r => (!m.stage || r.stage === m.stage) && (!m.instanceId || r.original.instance_id === m.instanceId)), m, 1000));
@@ -380,7 +381,7 @@ export function statistics(m) {
     + button('runtime', '运行并记录采样', 'shield') + '</div>');
 }
 export function backup(m) {
-  return title('导出与备份', '导出文件和由本地服务管理的备份分别处理。') + '<div class="grid even">'
+  return title('数据与备份', '导出文件和由本地服务管理的备份分别处理。') + '<div class="grid even">'
     + card('download', '导出全部数据', '<p class="quiet">导出所有主体、分身、会话、事件和修订。内容可能包含互动原文，请自行选择保存位置。</p><div class="spaced">'
     + button('export', '下载 JSON', 'download', '', 'primary') + '</div>')
     + card('archive', '创建恢复点', '<p class="quiet">恢复点保存在本机服务的数据目录。恢复会替换当前数据库及对应的 Agent 授权状态。</p><div class="spaced">'
@@ -422,6 +423,7 @@ export function settings(m) {
     + card('lock', '当前主体的 Agent 授权', m.grantsError ? empty('读取凭据清单失败', m.grantsError) : m.grants === null ? empty('正在读取授权清单') : m.grants.filter(g => g.subject_id === m.subjectId).map(g => '<div class="item item-line"><div><h3>'
     + h(lookup(m, g.instance_id)) + '</h3><div class="ident">' + h(g.grant_id) + '</div></div>'
     + button('revoke-agent', '撤销授权', 'lock', g.grant_id, 'danger') + '</div>').join('') || empty('暂无分身凭据'))
+    + '<details><summary>开发者工具</summary>' + jump('chat','模型调用回归测试') + '</details>'
     + '<div class="spaced">' + card('user', '主体管理', '<div class="actions">'
     + button('make-subject', '创建主体', 'plus') + button('setup', '打开接入向导', 'plug')
     + (m.subject ? button('rename-subject', '主体自主命名', 'user') : '') + button('rotate-local', '轮换本浏览器凭据', 'plug') + button('revoke-local', '撤销本浏览器配对', 'lock') + '</div>') + '</div>';
@@ -435,9 +437,11 @@ export function about() {
     + '</div>';
 }
 function chat() {
-  return '<header class="page-title"><h1>与 AI 对话</h1></header><div id="chat-host"></div>';
+  return '<header class="page-title"><h1>开发者工具 · 模型调用测试</h1></header><div id="chat-host"></div>';
 }
 export const renderPage = {
+  extension: () => title('浏览器插件') + card('plug', 'Chrome 状态侧栏', '<p>加载已解压的 Chrome 扩展，打开侧栏并配对。可在支持的聊天站点启用悬浮入口。网页选区仅在预览并确认后保存。</p>' + button('pair-extension','获取插件配对码','plug')),
+  pet: () => title('桌宠设置') + card('leaf','Windows 桌宠','<p>解压桌宠安装包并双击 Install-Windows.cmd。也可以在完整版的 apps/desktop-pet 中安装。右击晶体选择配对、显示范围、外观和提醒；双击查看原始记录。</p><p>桌宠可读取本机主体与分身的记录。退出后，本地服务继续运行。</p>' + button('pair-pet','获取桌宠只读配对码','plug') + button('revoke-pets','撤销所有桌宠配对','lock')),
   chat,
   overview,
   instances,

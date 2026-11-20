@@ -154,7 +154,7 @@ def main(sidebar_fixture=False):
                                  token=grant["token"])
                     assert "result" in reply and not reply["result"]["isError"], "MCP tool failed"
                     return reply["result"]["structuredContent"]
-                model("report_state", state_text="MCP 协议客户端验收记录")
+                report = model("report_state", state_text="MCP 协议客户端验收记录")
                 request = model("express_boundary", text="本次验收希望调整节奏")
                 with sync_playwright() as pw:
                     if sidebar_fixture:
@@ -195,6 +195,11 @@ def main(sidebar_fixture=False):
                         expect(panel.locator("#connection")).to_have_text("本地已连接")
                         panel.locator("#bind").click()
                         expect(panel.locator("#state-text")).to_have_text("MCP 协议客户端验收记录")
+                        expect(panel.locator("#state-meta")).to_contain_text(report["event_id"])
+                        pet_code = write("pair/code", {"target":"pet"}, owner)["code"]
+                        reader = api("pet/pair", {"code":pet_code})["token"]
+                        same = api("pet/feed", token=reader)["states"][0]
+                        assert (same["event_id"], same["source"]) == (report["event_id"], report["source"])
                         expect(panel.locator("#mode")).to_contain_text("网页观察模式：尚未建立 AI 直接写入连接。")
                         assert not worker.evaluate("() => chrome.permissions.contains({origins:['https://chatgpt.com/*']})")
                         panel.locator("#requests summary").click()
@@ -219,6 +224,7 @@ def main(sidebar_fixture=False):
                         print("PASS · unpacked extension, real SQLite/MCP/sidebar pairing, binding, refusal, mini window, dashboard handoff, 3 rendered DOM fixtures")
                     finally:
                         context.close()
+                        assert any(e["event_id"] == report["event_id"] for e in api("snapshot",token=owner)["events"])
             finally:
                 server.terminate()
 

@@ -13,11 +13,12 @@
 <p class="mode" id="mode">网页观察模式：尚未建立 AI 直接写入连接。</p>
 <p class="mode" id="channel" hidden></p>
 <details class="card" id="bind-card"><summary>绑定当前浏览器窗口</summary><div class="inside"><p>为当前对话选择主体和分身。已授权站点上的标准对话链接会恢复你确认过的绑定。其他页面的绑定只在当前标签页有效，导航后需要重新选择。</p><label>主体<select id="subject"></select></label><label>分身<select id="instance"></select></label><div class="tools"><button id="bind" class="primary">绑定此标签页</button><button id="unbind">解除绑定</button></div><p>可在完整仪表盘的分身管理中创建主体和分身。</p></div></details>
+<section><h2>主体共享历史</h2><ol id="shared" class="history"></ol></section>
 <section id="requests-card"><h2>请求与回应 <span id="request-count" class="count"></span></h2><div id="requests"></div></section>
 <section><h2>分身最近事件</h2><ol id="events" class="history"></ol></section>
 <details class="card" id="capture-card"><summary>保存网页可见陈述</summary><div class="inside"><p>先在聊天页面选中一条 AI 回答中的文字，然后预览并确认保存。每次只处理当前选区。普通聊天网页只能保存可见陈述；AI 自主写入需要支持 MCP 的宿主。</p>
 <label>站点<select id="site"><option value="chatgpt">ChatGPT · chatgpt.com</option><option value="claude">Claude · claude.ai</option><option value="gemini">Gemini · gemini.google.com</option></select></label>
-<div id="site-status" class="muted"></div><div class="tools"><button id="grant">允许此站点</button><button id="revoke">撤销站点权限</button></div><div class="tools"><button id="preview" class="primary">预览当前选区</button></div>
+<button id="floating">切换此站点的悬浮入口</button><div id="site-status" class="muted"></div><div class="tools"><button id="grant">允许此站点</button><button id="revoke">撤销站点权限</button></div><div class="tools"><button id="preview" class="primary">预览当前选区</button></div>
 <div id="preview-pane" hidden><h3>将保存的原文</h3><blockquote id="preview-text"></blockquote><div class="tools"><button id="save-observation" class="primary">确认保存原文</button><button id="cancel-preview">取消</button></div></div></div></details>
 <details class="card" id="privacy-card"><summary>隐私与通知</summary><div class="inside"><div id="observe-state" class="muted"></div><button id="pause"></button><p>图标徽标提示待回应请求。开启桌面提醒后，系统通知只显示有新请求。</p><button id="notifications">启用桌面提醒</button><hr><button id="rotate">轮换扩展凭据</button><button id="disconnect">断开并清除本机配对</button></div></details>
 </div></main><footer>作者：匹夫 · 岑衡川 · 沈回音</footer><script src="panel.js" type="module"></script></body></html>

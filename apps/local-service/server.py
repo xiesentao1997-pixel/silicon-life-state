@@ -23,6 +23,7 @@ ROOT = HERE.parent.parent
 sys.path.insert(0, str(HERE))  # Also works with the isolated Windows embeddable runtime.
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "packages" / "mcp-server"))
+from companion import feed
 from model_chat import Chat
 from access import Access, AccessError
 from dashboard_session import browser_reply, browser_token, cookie_header
@@ -376,6 +377,26 @@ class Handler(BaseHTTPRequestHandler):
                     token = access.exchange(body.get("code"), origin)["token"]
             browser_reply(self, token)
             return
+        if path.startswith("/api/pet/"):
+            if origin != self.server.base_url or self.header("Origin") or self.header("Sec-Fetch-Site"):
+                raise AccessError(403, "NATIVE_REQUIRED", "请从本机桌宠连接。")
+            if path == "/api/pet/pair" and self.command == "POST":
+                body = self.payload()
+                if not isinstance(body, dict) or set(body) != {"code"}:
+                    raise AccessError(400, "INVALID_CODE", "请输入桌宠专用配对码。")
+                self.reply(200, access.exchange(body["code"], "desktop-pet"))
+                return
+            token = self.bearer()
+            access.check(token, "desktop-pet")
+            if path == "/api/pet/feed" and self.command == "GET":
+                query = parse_qs(url.query, max_num_fields=2)
+                self.reply(200, feed(store, query.get("subject_id", [None])[0], query.get("instance_id", [None])[0]))
+            elif path == "/api/pet/disconnect" and self.command == "POST":
+                access.revoke(token)
+                self.reply(200, {"revoked": True})
+            else:
+                raise AccessError(404, "NOT_FOUND", "接口不存在。")
+            return
         if path == "/api/pair" and self.command == "POST":
             body = self.payload()
             if not isinstance(body, dict):
@@ -438,6 +459,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def mutate(self, path, body, token, origin):
         store, access = self.server.store, self.server.access
+        if path == "/api/revoke-pets":
+            if origin != self.server.base_url:
+                raise AccessError(403, "DASHBOARD_REQUIRED", "请从本机仪表盘管理。")
+            return access.revoke_pets()
         if path == "/api/pair/status":
             require_keys(body, {"code"})
             return access.code_status(body.get("code"))

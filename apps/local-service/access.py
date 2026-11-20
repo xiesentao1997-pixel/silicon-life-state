@@ -87,8 +87,8 @@ class Access:
         return closing(sqlite3.connect(self.path, timeout=15, isolation_level=None))
 
     def issue_code(self, target):
-        if target not in ("dashboard", "extension"):
-            raise AccessError(400, "INVALID_PAIR_TARGET", "选择 dashboard 或 extension。")
+        if target not in ("dashboard", "extension", "pet"):
+            raise AccessError(400, "INVALID_PAIR_TARGET", "选择 dashboard、extension 或 pet。")
         code = secrets.token_urlsafe(24)
         now = int(time.time())
         with self.connect() as db:
@@ -117,8 +117,8 @@ class Access:
         return True
 
     def paired_code(self, token, key, target, replaces=None):
-        if target not in ("dashboard", "extension"):
-            raise AccessError(400, "INVALID_PAIR_TARGET", "选择 dashboard 或 extension。")
+        if target not in ("dashboard", "extension", "pet"):
+            raise AccessError(400, "INVALID_PAIR_TARGET", "选择 dashboard、extension 或 pet。")
         with self.connect() as db:
             with db:
                 db.execute("BEGIN IMMEDIATE")
@@ -156,7 +156,7 @@ class Access:
     def exchange(self, code, origin):
         if not isinstance(code, str) or len(code) > 128:
             raise AccessError(400, "INVALID_CODE", "请输入有效配对码。")
-        target = "extension" if origin.startswith("chrome-extension://") else "dashboard"
+        target = "extension" if origin.startswith("chrome-extension://") else "pet" if origin == "desktop-pet" else "dashboard"
         token = "sls_owner_" + secrets.token_urlsafe(32)
         now = int(time.time())
         with self.connect() as db:
@@ -166,7 +166,7 @@ class Access:
                 row = code_record(db, code_hash)
                 if not row:
                     raise AccessError(403, "INVALID_PAIR_CODE", "配对码无效。请核对完整内容，或重新生成配对码。")
-                desired = "插件" if target == "extension" else "仪表盘"
+                desired = "插件" if target == "extension" else "桌宠" if target == "pet" else "仪表盘"
                 if row[0] != target:
                     raise AccessError(403, "PAIR_WRONG_TARGET", "配对入口不匹配。请使用" + desired + "专用配对码。")
                 if row[2] == "used":
@@ -178,7 +178,7 @@ class Access:
                 finish_code(db, code_hash, target, "used")
                 db.execute("INSERT INTO clients VALUES (?,?,?)", (digest(token), origin, UNTIL_REVOKED))
                 register_uninstall(db, token, origin)
-        return {"token": token, "expires_in": None, "role": "owner"}
+        return {"token": token, "expires_in": None, "role": "reader" if target == "pet" else "owner"}
 
     def check(self, token, origin):
         with self.connect() as db:
@@ -212,6 +212,13 @@ class Access:
                 db.execute("DELETE FROM uninstall_tickets WHERE client=?", (digest(token),))
                 register_uninstall(db, replacement, origin)
         return replacement
+
+    def revoke_pets(self):
+        with self.connect() as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            count = db.execute("DELETE FROM clients WHERE origin='desktop-pet'").rowcount
+            db.execute("DELETE FROM codes WHERE target='pet'")
+        return {"revoked": count}
 
     def revoke(self, token):
         with self.connect() as db:

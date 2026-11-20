@@ -1,0 +1,28 @@
+name: Companion acceptance
+on:
+  push:
+    branches: [main]
+    paths: ['apps/**', 'tests/**', '.github/workflows/companion.yml', 'VERSION']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop:
+    runs-on: windows-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -X utf8 tests/windows_pet_smoke.py
+  extension:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright && python -m playwright install chromium
+      - run: python tests/extension_browser.py

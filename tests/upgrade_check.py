@@ -58,6 +58,8 @@ def upgrade_generated(old_root, temp):
         new_rows = {e['event_id']:e for e in after['events']}
         assert old_rows == new_rows
         for field, metadata in [('subjects','subject_name'),('instances','instance_name')]:
+            if before[field] and metadata in before[field][0]:
+                continue  # Named identities already exist in v1.0.4; compare the full records below.
             for row in after[field]:
                 profile=row.pop(metadata)
                 assert profile['name']==row['name'] and profile['source']=='historical'
@@ -113,7 +115,7 @@ def upgrade_historical(old_root, path, temp):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--old-root',type=Path)
-    parser.add_argument('--baseline',choices=['v1.0.0','v1.0.1','v1.0.2','v1.0.3'],default='v1.0.0')
+    parser.add_argument('--baseline',choices=['v1.0.0','v1.0.1','v1.0.2','v1.0.3','v1.0.4'],default='v1.0.0')
     parser.add_argument('--archived-agent-db',type=Path)
     parser.add_argument('--output',type=Path)
     args=parser.parse_args()

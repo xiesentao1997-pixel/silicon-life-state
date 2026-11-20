@@ -802,6 +802,17 @@ async function act(a, v) {
     case 'issue':
       issue(v);
       break;
+    case 'pair-pet': {
+      const {code} = await write('pair/code', {target:'pet'});
+      capturedSecret = code;
+      modal('桌宠只读配对', '<p>在桌宠右键菜单中选择「连接本地服务」，输入这个一次性配对码。10 分钟内有效。</p><pre>' + h(code) + '</pre>' + button('copy','复制配对码','copy'));
+      break;
+    }
+    case 'revoke-pets':
+      modal('撤销所有桌宠配对', '<p>所有桌宠将停止读取。再次使用时可重新配对。</p>', async () => {
+        await write('revoke-pets', {}); close(); toast('桌宠配对已撤销');
+      }, '撤销配对', true);
+      break;
     case 'pair-extension':
     case 'regenerate-pair-code':
       {
