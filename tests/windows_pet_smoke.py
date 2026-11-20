@@ -1,4 +1,5 @@
 """Install on a disposable Windows runner and exercise the shipped GUI through Win32."""
+import argparse
 import ctypes
 from ctypes import wintypes
 import json
@@ -23,7 +24,33 @@ def until(fn, label):
     raise RuntimeError("Timed out: " + label)
 
 
-def main():
+def verify_extension(service, directory, report):
+    """Use the actual unpacked extension and the same live database as the desktop window."""
+    from playwright.sync_api import expect, sync_playwright
+    extension = str(ROOT / "apps/extension")
+    with sync_playwright() as pw:
+        context = pw.chromium.launch_persistent_context(str(Path(directory)/"chrome-profile"),
+            channel="chromium",headless=True,ignore_default_args=["--disable-extensions"],
+            args=["--disable-extensions-except="+extension,"--load-extension="+extension])
+        try:
+            worker = next(iter(context.service_workers),None) or context.wait_for_event("serviceworker")
+            tab = worker.evaluate("async () => (await chrome.tabs.query({active:true,currentWindow:true}))[0].id")
+            panel = context.new_page()
+            panel.goto(worker.url.rsplit("/",1)[0] + "/panel.html?tab=" + str(tab))
+            panel.locator("#pair-form details summary").click()
+            panel.locator("#port").fill(service.base.rsplit(":",1)[1])
+            panel.locator("#code").fill(service.ready["extension_code"])
+            panel.locator("#pair-form button").click()
+            expect(panel.locator("#connection")).to_have_text("本地已连接")
+            panel.locator("#bind").click()
+            expect(panel.locator("#state-text")).to_have_text(report["payload"]["state_text"])
+            expect(panel.locator("#state-meta")).to_contain_text(report["event_id"])
+            expect(panel.locator("#state-meta")).to_contain_text("AI 通过 MCP 自主填写")
+        finally:
+            context.close()
+
+
+def main(with_extension):
     u = ctypes.windll.user32
     u.FindWindowW.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR]
     u.FindWindowW.restype = wintypes.HWND
@@ -72,6 +99,8 @@ def main():
             actual = until(lambda: content(detail) if request["event_id"] in content(detail) else None,"automatic update")
             assert report["event_id"] in actual and "AI 自主报告" in actual
             assert "Native desktop update" in actual and "Please keep this original wording." in actual
+            if with_extension:
+                verify_extension(service,directory,report)
             u.PostMessageW(detail,0x10,0,0)
             u.PostMessageW(hwnd,0x100,27,0)
             until(lambda:not u.IsWindowVisible(hwnd),"hide to tray")
@@ -82,7 +111,7 @@ def main():
             assert any(e["event_id"]==report["event_id"] for e in service.api("snapshot")["events"])
             subprocess.run(["cmd.exe","/d","/c","Uninstall-Windows.cmd"],cwd=folder,check=True,timeout=20)
             print(json.dumps(dict(result="PASS",installer=True,native_window_drag=True,hidden_alive=True,
-                automatic_update=True,request_verbatim=True,exit_and_history=True,event_id=report["event_id"],source=report["source"])))
+                same_event_in_unpacked_chromium=with_extension,automatic_update=True,request_verbatim=True,exit_and_history=True,event_id=report["event_id"],source=report["source"])))
         finally:
             if process is not None and process.poll() is None:
                 process.kill()
@@ -91,4 +120,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--with-extension",action="store_true")
+    main(parser.parse_args().with_extension)

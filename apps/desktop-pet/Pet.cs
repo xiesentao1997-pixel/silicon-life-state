@@ -12,6 +12,8 @@ using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
+[assembly: System.Reflection.AssemblyVersion("1.0.5.0")]
+[assembly: System.Reflection.AssemblyProduct("Silicon Life State Desktop Pet")]
 namespace SiliconLife {
 public class Identity { public string id, name; }
 public class Record {
@@ -256,8 +258,9 @@ static class Program {
     [STAThread] static int Main(string[] args) {
         int port;if(!int.TryParse(Preferences.Read("Port","47831"),out port) || port<1 || port>65535)port=47831;
         var service=new LocalService {Port=port,Token=Preferences.Token()};
-        if(args.Length==2 && args[0]=="--pair-stdin"){service.Port=int.Parse(args[1]);Preferences.Pair(service,Console.ReadLine());return 0;}
-        if(args.Length==1 && args[0]=="--disconnect"){if(service.Token!="")service.Call<object>("disconnect",new{});Preferences.Save("Pair","");return 0;}
+        if(args.Length==2 && args[0]=="--pair-stdin"){service.Port=int.Parse(args[1]);service.Token="";Preferences.Pair(service,Console.ReadLine());return 0;}
+        if(args.Length==1 && args[0]=="--disconnect"){try {if(service.Token!="")service.Call<object>("disconnect",new{});return 0;}
+            catch(WebException){return 1;} finally{Preferences.Save("Pair","");}}
         Application.EnableVisualStyles();Application.SetCompatibleTextRenderingDefault(false);Application.Run(new Pet(service));return 0;
     }
 }

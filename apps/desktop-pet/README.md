@@ -1,6 +1,6 @@
 # 硅基生命状态 · Windows 桌宠
 
-解压后双击 **Install-Windows.cmd**。安装器使用 Windows x64 自带的 .NET Framework 4.8 编译本包的 Pet.cs，在当前用户的开始菜单创建 Silicon Life State Pet。支持离线安装，升级前请先从托盘退出桌宠。
+解压后双击 **Install-Windows.cmd**。发布包内附原生 x64 可执行文件，安装器把应用装入当前用户目录并创建开始菜单入口 Silicon Life State Pet。从源码运行安装器时，使用 Windows 的 .NET Framework 4.8 编译 Pet.cs。支持离线安装，升级前请先从托盘退出桌宠。
 
 启动本地状态服务，在仪表盘「桌宠设置」生成只读配对码。右击桌面晶体，选择「连接本地服务」，输入配对码及服务端口。凭据由当前 Windows 用户的 DPAPI 加密保存。只在本机读取，没有云端请求。
 
