@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from contextlib import closing
 import sqlite3
 import subprocess
 import sys
@@ -212,7 +213,7 @@ class Acceptance(unittest.TestCase):
         with db.open('r+b') as f:
             f.write(b'CORRUPTED HEADER')
         with self.assertRaises(sqlite3.DatabaseError):
-            with sqlite3.connect(db) as con:
+            with closing(sqlite3.connect(db)) as con, con:
                 con.execute('PRAGMA integrity_check').fetchall()
         run = subprocess.run([sys.executable, str(SERVER), '--data-dir', str(self.local.directory),
                               '--recover', backup], capture_output=True, text=True, timeout=20)

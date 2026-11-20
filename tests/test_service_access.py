@@ -1,5 +1,6 @@
 """Independent browser pairing and grant isolation. Uses only disposable directories."""
 import concurrent.futures
+from contextlib import closing
 import sqlite3
 import sys
 import tempfile
@@ -49,7 +50,7 @@ class BrowserPairing(unittest.TestCase):
 
     def test_expiry_and_revocation(self):
         code = self.access.issue_code('dashboard')['code']
-        with sqlite3.connect(self.access.path) as db:
+        with closing(sqlite3.connect(self.access.path)) as db, db:
             db.execute('UPDATE codes SET expires=0')
         with self.assertRaises(AccessError):
             self.access.exchange(code, self.web)

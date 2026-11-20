@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
+from contextlib import closing
 import sqlite3
 import subprocess
 import sys
@@ -24,7 +25,7 @@ class PairRecovery(unittest.TestCase):
             code = "legacy-first-install-code"
             expires = int(time.time()) + 120
             as_hash = lambda value: hashlib.sha256(value.encode()).hexdigest()
-            with sqlite3.connect(path) as db:
+            with closing(sqlite3.connect(path)) as db, db:
                 db.executescript("""
                     CREATE TABLE codes (hash TEXT PRIMARY KEY,target TEXT NOT NULL,expires INTEGER NOT NULL);
                     CREATE TABLE clients (hash TEXT PRIMARY KEY,origin TEXT NOT NULL,expires INTEGER NOT NULL);
@@ -38,7 +39,7 @@ class PairRecovery(unittest.TestCase):
             self.assertEqual("used", access.code_status(code)["state"])
             self.assertEqual("used", Access(temp).code_status(code)["state"])
             # Exact INSERT/DELETE shape from the v1.0 release, after the 1.0.1 migration.
-            with sqlite3.connect(path) as old_db:
+            with closing(sqlite3.connect(path)) as old_db, old_db:
                 self.assertEqual(0, old_db.execute("DELETE FROM codes WHERE hash=? AND target=? AND expires>?",
                                                  (as_hash(code), "dashboard", 0)).rowcount)
                 old_db.execute("INSERT INTO codes VALUES (?,?,?)", (as_hash("rollback-issued"),"dashboard",expires))
@@ -52,7 +53,7 @@ class PairRecovery(unittest.TestCase):
                 old = local.ready["extension_code"]
                 self.assertEqual(401, local.raw("/api/pair/status", {"code":old})[0])
                 self.assertEqual(401, local.raw("/api/pair/code", {"target":"extension","idempotency_key":fresh()})[0])
-                with sqlite3.connect(Path(temp)/"browser-access.sqlite3") as db:
+                with closing(sqlite3.connect(Path(temp)/"browser-access.sqlite3")) as db, db:
                     db.execute("UPDATE codes SET expires=expires-601 WHERE hash=?", (hashlib.sha256(old.encode()).hexdigest(),))
                 status, detail = local.raw("/api/pair", {"code":old}, headers=header)
                 self.assertEqual((410, "PAIR_EXPIRED"), (status, detail["error"]["code"]))

@@ -1,4 +1,5 @@
 """Host enrollment, revocation, migration and managed recovery use a disposable real service."""
+from contextlib import closing
 import sqlite3
 import tempfile
 import unittest
@@ -120,7 +121,7 @@ class Installations(unittest.TestCase):
         store=Store(self.directory)
         backup=self.client.api('backup',{})
         path=store.files.backup_path(backup['backup_id'])
-        with sqlite3.connect(path) as db:
+        with closing(sqlite3.connect(path)) as db, db:
             for table in ('conversation_bindings','installations'):
                 db.execute('DROP TABLE '+table)
             db.execute('PRAGMA user_version=1')
@@ -128,7 +129,7 @@ class Installations(unittest.TestCase):
         self.client.api('restore',{'backup_id':backup['backup_id']})
         self.assertEqual(self.client.api('subjects')['subjects'][0]['subject_id'],self.subject)
         self.assertEqual(self.client.api('installations')['installations'],[])
-        with sqlite3.connect(store.files.path) as db:
+        with closing(sqlite3.connect(store.files.path)) as db, db:
             self.assertEqual(db.execute('PRAGMA user_version').fetchone()[0],2)
 
 
