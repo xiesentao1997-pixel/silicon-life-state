@@ -1,8 +1,12 @@
 name: Windows x64 portable acceptance
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and run
+        type: choice
+        required: true
+        options: [v1.0.3]
 
 permissions:
   contents: read
@@ -13,14 +17,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: refs/tags/${{ inputs.tag }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Prepare verified build input
         run: python scripts/windows_runtime.py --fetch
       - name: Build tagged release
-        run: python scripts/build_release.py --ref "${{ github.ref_name }}"
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: python -X utf8 scripts/build_release.py --ref "$env:RELEASE_TAG"
       - name: Launch the extracted package with system Python removed from the launcher PATH
         shell: pwsh
         run: |

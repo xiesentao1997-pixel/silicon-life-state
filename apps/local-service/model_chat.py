@@ -465,7 +465,7 @@ class Chat:
         if name not in READ_TOOLS:
             args["idempotency_key"] = "chat-" + key
             if name != "rename_instance":
-                args.update(model_version=turn.model_id, adapter_version="silicon-life-state-chat/1.0.2")
+                args.update(model_version=turn.model_id, adapter_version="silicon-life-state-chat/1.0.3")
         self.check_secret(session, args)
         res = mcp(self.server.base_url+"/mcp", session.token, "tools/call", {"name":name,"arguments":args},
                   expected_session=session.instance["session_id"])

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "硅基生命状态 · Silicon Life State",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "在本机查看分身的自主陈述、回应边界请求，按次授权保存网页中的可见陈述。",
   "minimum_chrome_version": "116",
   "permissions": [

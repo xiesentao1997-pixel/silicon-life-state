@@ -32,7 +32,7 @@ from reconnect import bundle, endpoint_proof, existing_endpoint, publish_endpoin
 from packages.core.store import DomainError, Store
 from mcp_wire import error as rpc_error, handle_http
 
-VERSION = "1.0.2"
+VERSION = "1.0.3"
 DEFAULT_PORT = 47831
 ASSETS = ROOT / "apps" / "dashboard"
 MAX_BYTES = 1024 * 1024

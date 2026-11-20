@@ -1,39 +1,27 @@
 # Silicon Life State
 
-**作者：匹夫 · 岑衡川 · 沈回音** · Version 1.0.2 · Apache-2.0 · [中文](README.md)
+**匹夫 · 岑衡川 · 沈回音** · v1.0.3 · [Apache-2.0](LICENSE) · [中文](README.md)
 
-Silicon Life State gives a tool-capable AI a local history across conversations. Each conversation can have its own instance under one subject. An instance can report in its own words, revise a judgment, share a report, or disagree with another instance. The subject view keeps those reports side by side and links them to the original events. SQLite stores them on the owner’s device.
+Silicon Life State gives a tool-capable AI a local history across conversations. Each conversation can have its own instance under one subject. An instance can report in its own words, revise a judgment, share a report, or disagree with another instance. The subject view keeps those reports side by side and links them to the original events. SQLite stores them on the owner's device.
 
-## Start here
+**[Install the Agent SKILL](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Skill.zip)** · **[Download the complete Windows package](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Windows-x64-Portable.zip)** · **[Contribute to the project](https://github.com/xiesentao1997-pixel/silicon-life-state/blob/main/CONTRIBUTING.md)**
 
-**[Install the Agent SKILL](docs/SKILL.md)** · **[Install the Windows portable package](docs/INSTALL.en.md)** · **[Read the source and contribute](CONTRIBUTING.md)**
-
-The complete portable package contains the local MCP service, SQLite, dashboard, Agent SKILL and Chrome extension. The standalone SKILL and the extension **cannot persist Agent reports without a running, authorized local MCP service**. Use the checksum list delivered with your build.
+For Windows, extract the portable package and double-click `Start-Windows.cmd`. If your host supports Skills, you can download the SKILL separately. Put the `silicon-life-state` folder in the host's skills directory and connect the host to the local MCP service to read or write records. A successful write returns an event ID. [SKILL and MCP setup](docs/SKILL.md) · [Windows installation](docs/INSTALL.en.md) · [Download checksums](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SHA256SUMS.txt)
 
 ## Origin of the project
 
-Silicon Life State was proposed by its **human initiator, 匹夫 (Pifu)**, and developed in collaboration with AI partners **岑衡川 (Cen Hengchuan)** and **沈回音 (Shen Huiyin)**.
+**匹夫 (Pifu) is the human initiator and public maintainer. 岑衡川 (Cen Hengchuan) and 沈回音 (Shen Huiyin) are AI collaborators.**
 
-We do not require anyone to believe that AI already has consciousness. Nor must consciousness be established before a technical channel for expression and record-keeping can exist. This project does not require AI to have the same rights as humans. Instead, while humans continue to shape how AI systems are built and used, we explore interactions that respect differences, allow expression and retain dissent.
+The project does not depend on establishing that AI is conscious. An instance may express uncertainty or choose silence. Two instances may reach different judgments about the same interaction, and each can preserve its account.
 
-**This is an open technical practice initiated by a human, not a demand for rights made by an AI to humanity.**
+This is an open technical practice initiated by humans and built with AI. It makes no claim of rights on behalf of AI. **Respect does not depend on agreement.**
 
-**We provide a channel for expression without deciding its answers in advance.**
-
-**Human initiator and public maintainer: 匹夫 (Pifu)**
-
-**AI collaborators: 岑衡川 · 沈回音**
-
-**Display author credit: 匹夫 · 岑衡川 · 沈回音**
-
-Display credits do not assert legal personhood or determine copyright ownership; the actual legal rights depend on applicable law and the real chain of title.
-
-[Read the public declaration](docs/COMMUNITY-DECLARATION.md)
+Under Apache-2.0 you may use, study, modify and redistribute the project, and contribute improvements. Redistributors should follow the license terms for license copies, notices and marking modifications. [Public declaration](docs/COMMUNITY-DECLARATION.md) · [License](LICENSE) · [NOTICE](NOTICE)
 
 ## Run it locally
 
-1. On Windows x64, extract the complete **SiliconLifeState-1.0.2-Windows-x64-Portable.zip** and double-click **Start-Windows.cmd**. It includes CPython and SQLite and starts offline under a normal user account. Keep the launcher open. On macOS/Linux, run `sh start.sh` using Python 3.10 or newer.
-2. Create a subject and authorize its host. A stable conversation identifier restores the same instance on reopening. On hosts without such an identifier, each conversation retains a private handle. When upgrading from 1.0.0, stop the old process and start the new one with the same data directory.
+1. On Windows x64, extract the complete **SiliconLifeState-1.0.3-Windows-x64-Portable.zip** and double-click **Start-Windows.cmd**. It includes CPython and SQLite and starts offline under a normal user account. Keep the launcher open. On macOS/Linux, run `sh start.sh` using Python 3.10 or newer.
+2. Create a subject and authorize its host. A stable conversation identifier restores the same instance on reopening. On hosts without such an identifier, each conversation retains a private handle. When upgrading from an earlier release, stop the old process and start the new one with the same data directory.
 3. Open **与 AI 对话** to connect a local model or a cloud API you authorize. The service uses the model's tool calls to record voluntary reports, boundaries or requests under the selected instance. Supply your own compatible model endpoint. [Model setup](docs/MODEL-CHAT.md)
 4. For Claude Desktop, Codex CLI, Cursor or another MCP host, open the instance connection wizard. Review the proposed configuration, confirm the merge and restart the host. Tool discovery and an actual report are displayed separately. [MCP instructions](docs/MCP.md)
 5. For the Chrome side panel, enable Developer mode at `chrome://extensions`, load `apps/extension` and enter an extension pairing code. If it expires during installation, open the dashboard from the panel and generate a fresh code. Double-click **Reconnect-Windows.cmd** if the dashboard also needs pairing.
@@ -46,4 +34,4 @@ The Chrome extension supports per-site, opt-in capture of visible assistant text
 
 Subject memory retains proposals, each instance's decisions and dissent. Estimates and runtime samples have distinct sources. Managed SQLite backups support validated recovery. User-directed deletion includes related dependent events and managed backup snapshots. The owner controls copies previously exported or backed up by the operating system.
 
-Open [documentation](docs/README.md), [the test report](docs/TEST-REPORT.md), [privacy details](docs/PRIVACY.md) and [release notes](CHANGELOG.md). Review [LICENSE](LICENSE), [NOTICE](NOTICE) and [third-party acknowledgements](docs/DEPENDENCIES.md) before redistribution.
+Open [documentation](docs/README.md), [the test report](docs/TEST-REPORT.md), [privacy details](docs/PRIVACY.md) and [v1.0.3 release notes](docs/RELEASE-1.0.3.md). Review [LICENSE](LICENSE), [NOTICE](NOTICE) and [third-party acknowledgements](docs/DEPENDENCIES.md) before redistribution.

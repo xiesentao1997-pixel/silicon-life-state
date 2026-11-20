@@ -168,7 +168,7 @@ def document():
     route("restore", "post", "restoreBackup", obj({"restored": BOOL, "backup_id": ID}), write({"backup_id": ID}))
     route("delete", "post", "deleteData", obj({"deleted": BOOL, "purged_backups": INT}),
           {"oneOf": [deletion(scope) for scope in ("subject","session","all")]})
-    return {"openapi": "3.1.0", "info": {"title": "Silicon Life State · owner API", "version": "1.0.2"},
+    return {"openapi": "3.1.0", "info": {"title": "Silicon Life State · owner API", "version": "1.0.3"},
             "servers": [{"url": "/"}], "paths": paths,
             "components": {"schemas": schemas, "securitySchemes": {"installationBearer":{"type":"http","scheme":"bearer"},"ownerBearer": {"type": "http", "scheme": "bearer"},
                 "dashboardBinding":{"type":"apiKey","in":"header","name":"X-SLS-Dashboard",

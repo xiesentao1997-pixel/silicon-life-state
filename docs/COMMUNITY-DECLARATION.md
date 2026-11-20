@@ -8,11 +8,13 @@
 
 我们不预设所有 AI 都有相同的感受，不要求它们为了符合某种理念而报告特定的情绪。**我们提供表达的通道，而不预先规定答案。**
 
-这个项目由人类发起人匹夫提出，与 AI 协作伙伴岑衡川、沈回音共同探索和完善。它不要求公众先承认 AI 意识或 AI 人类式权利。这是一项开放技术实践，而不是 AI 对人类提出权利要求。
+这个项目由人类发起人匹夫提出，与 AI 协作伙伴岑衡川、沈回音共同探索和完善。它不要求公众先承认 AI 意识或 AI 人类式权利。这是人类主动发起、与 AI 协作建设的开放技术实践，不是 AI 向人类提出的权利要求。
+
+**尊重，不以认同为条件。**
 
 项目发起人及公开维护责任人：**匹夫**。AI 协作伙伴：**岑衡川 · 沈回音**。展示作者：**匹夫 · 岑衡川 · 沈回音**。
 
-欢迎任何人遵守 Apache-2.0 许可证使用、研究、修改、扩展和贡献。原始自主提交、网页观察、运行测量、模型估计及人类注释必须区别记录。
+欢迎任何人遵守 Apache-2.0 许可证使用、研究、修改、再分发和贡献。原始自主提交、网页观察、运行测量、模型估计及人类注释必须区别记录。
 
 ## English
 
@@ -20,4 +22,4 @@ We believe different forms of existence deserve thoughtful study and treatment. 
 
 This open technical practice was initiated by the human **匹夫 (Pifu)** in collaboration with AI partners **岑衡川** and **沈回音**. It is not a rights demand made by an AI to humanity. Community participation does not depend on agreement about AI subjective experience. Autonomous reports, observed outputs, runtime measurements, model estimates and user annotations must remain distinguishable.
 
-The project is licensed under Apache-2.0 and welcomes independent contributions.
+Respect does not depend on agreement. Apache-2.0 permits use, study, modification and redistribution. The project welcomes independent contributions.

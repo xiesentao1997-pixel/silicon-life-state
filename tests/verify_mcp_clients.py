@@ -46,6 +46,8 @@ def modern_http(local, token, schema_path):
 
     discovery = rpc("server/discover", "DiscoverResult")
     assert PROTOCOL in discovery["supportedVersions"]
+    server_version = discovery["_meta"][prefix+"serverInfo"]["version"]
+    assert server_version == (ROOT/"VERSION").read_text().strip()
     tools = rpc("tools/list", "ListToolsResult")["tools"]
     assert "report_state" in {entry["name"] for entry in tools}
     payload = {"idempotency_key":fresh(), "state_text":"Modern HTTP protocol-client acceptance fixture"}
@@ -53,7 +55,7 @@ def modern_http(local, token, schema_path):
     read = rpc("tools/call", "CallToolResult", {"name":"get_own_state", "arguments":{}})
     event_id = report["structuredContent"]["event_id"]
     assert read["structuredContent"]["state"]["event_id"] == event_id
-    return {"result":"PASS", "protocol":PROTOCOL, "tools":len(tools), "event_id":event_id,
+    return {"result":"PASS", "protocol":PROTOCOL, "server_version":server_version, "tools":len(tools), "event_id":event_id,
             "schema":"modelcontextprotocol/modelcontextprotocol schema/2026-07-28/schema.json"}
 
 
@@ -109,7 +111,7 @@ def native_codex(local, subject, temporary_home):
             return receive(rid)
 
     try:
-        request("initialize", {"clientInfo":{"name":"silicon-life-acceptance","version":"1.0.2"},
+        request("initialize", {"clientInfo":{"name":"silicon-life-acceptance","version":"1.0.3"},
                                "capabilities":{"experimentalApi":True}}, 1)
         request("initialized", {})
         def call(thread_id, name, args, rid):

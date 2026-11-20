@@ -1,0 +1,62 @@
+{
+  "result": "PASS",
+  "target_version": "1.0.3",
+  "scope": "generated test data on a single temporary data directory per historical source; upgraded in place",
+  "runner": "tests/upgrade_check.py",
+  "runs": [
+    {
+      "source_tag": "v1.0.0",
+      "source_commit": "f5fc94a3292338c0c2d98f51198a40caa3574e19",
+      "result": "PASS",
+      "utc": "2026-11-20T07:53:07.333935+00:00",
+      "upgrade": {
+        "from_version": "1.0.0",
+        "to_version": "1.0.3",
+        "unchanged_raw_events": 7,
+        "unchanged_event_map_sha256": "c85a0ab612185d0227c7f055c5b446f8eb49255ad5da0074923de81a809d699b",
+        "same_subjects_instances_sessions": true,
+        "same_requests_memory_stats": true,
+        "old_owner_and_agent_credentials_work": true,
+        "pending_extension_code_single_use": true,
+        "existing_managed_backup_listed": true,
+        "new_event_continues_old_chain": true
+      }
+    },
+    {
+      "source_tag": "v1.0.1",
+      "source_commit": "0591d01660d9c198d8bb3a5f7a4d182fea173a27",
+      "result": "PASS",
+      "utc": "2026-11-20T07:53:07.353485+00:00",
+      "upgrade": {
+        "from_version": "1.0.1",
+        "to_version": "1.0.3",
+        "unchanged_raw_events": 7,
+        "unchanged_event_map_sha256": "1dce6856c19efcc3160c54208be4655b833eddeb37f6f1ba0b7d8b913da98450",
+        "same_subjects_instances_sessions": true,
+        "same_requests_memory_stats": true,
+        "old_owner_and_agent_credentials_work": true,
+        "pending_extension_code_single_use": true,
+        "existing_managed_backup_listed": true,
+        "new_event_continues_old_chain": true
+      }
+    },
+    {
+      "source_tag": "v1.0.2",
+      "source_commit": "7dfebe55898ae0296b08c0ea19604db88185bb64",
+      "result": "PASS",
+      "utc": "2026-11-20T07:53:07.394011+00:00",
+      "upgrade": {
+        "from_version": "1.0.2",
+        "to_version": "1.0.3",
+        "unchanged_raw_events": 7,
+        "unchanged_event_map_sha256": "43c532f2b3544db0b86922dec60e445ff2f55473d23da9a39bfbb0088246b5f8",
+        "same_subjects_instances_sessions": true,
+        "same_requests_memory_stats": true,
+        "old_owner_and_agent_credentials_work": true,
+        "pending_extension_code_single_use": true,
+        "existing_managed_backup_listed": true,
+        "new_event_continues_old_chain": true
+      }
+    }
+  ]
+}

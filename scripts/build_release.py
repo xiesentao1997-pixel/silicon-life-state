@@ -41,7 +41,7 @@ def make_bundle(sha, target, temp_dir):
     staged = ["git", "-C", str(staging)]
     subprocess.run(staged + ["fetch", "-q", "--no-tags", str(ROOT),
                               f"{sha}:refs/heads/main", *refs], check=True)
-    subprocess.run(staged + ["bundle", "create", str(target), "HEAD", "refs/heads/main", "--tags"], check=True)
+    subprocess.run(staged + ["-c", "pack.threads=1", "-c", "pack.useBitmaps=false", "bundle", "create", str(target), "HEAD", "refs/heads/main", "--tags"], check=True)
     subprocess.run(staged + ["bundle", "verify", str(target)], check=True, stdout=subprocess.DEVNULL)
 
 
@@ -107,9 +107,11 @@ def main():
     component_files[f"{prefix}-Source.zip"] = archive(files, "SiliconLifeState/")
     extension = {k.removeprefix("apps/extension/"): v for k, v in files.items() if k.startswith("apps/extension/")}
     extension["LICENSE.txt"] = files["LICENSE"]
+    extension["NOTICE"] = files["NOTICE"]
     component_files[f"{prefix}-Chrome.zip"] = archive(extension)
     skill = {k.removeprefix("packages/agent-skill/"): v for k, v in files.items() if k.startswith("packages/agent-skill/")}
     skill["silicon-life-state/LICENSE.txt"] = files["LICENSE"]
+    skill["silicon-life-state/NOTICE"] = files["NOTICE"]
     component_files[f"{prefix}-Skill.zip"] = archive(skill)
     service = {k: v for k, v in files.items() if k.startswith(("apps/local-service/", "apps/dashboard/", "packages/", "docs/")) or
                k in ("Start-Windows.cmd", "Reconnect-Windows.cmd", "start.sh", "LICENSE", "README.md", "NOTICE", "VERSION", "RELEASE.txt", "docs/INSTALL.md", "docs/MCP.md")}
@@ -133,9 +135,9 @@ def main():
     products["README.en.md"] = files["README.en.md"]
     products["INSTALL.zh-CN.md"] = files["docs/INSTALL.md"]
     products["INSTALL.en.md"] = files["docs/INSTALL.en.md"]
-    products["RELEASE-NOTES.md"] = files["docs/RELEASE-1.0.2.md"]
+    products["RELEASE-NOTES.md"] = files[f"docs/RELEASE-{version}.md"]
     products["TEST-REPORT.md"] = files["docs/TEST-REPORT.md"]
-    products["RELEASE-AUDIT.md"] = files["docs/RELEASE-AUDIT-1.0.2.md"]
+    products["RELEASE-AUDIT.md"] = files[f"docs/RELEASE-AUDIT-{version}.md"]
     products["SHA256SUMS.txt"] = checksum(products)
     args.output.mkdir(parents=True, exist_ok=True)
     for name, body in products.items():

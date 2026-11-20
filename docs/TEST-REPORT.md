@@ -1,48 +1,60 @@
-# 硅基生命状态 1.0.2 整改验收
+# 硅基生命状态 1.0.3 预发布测试报告
 
 2026-11-20 · 匹夫 · 岑衡川 · 沈回音
+
 匹夫为人类发起人及公开维护责任人。
 
-本次在原 Git 主线的历史提交 `7dfebe55898ae0296b08c0ea19604db88185bb64` 上继续开发。它带有历史标签 `v1.0.2`，其父提交 `0591d01` 带有 `v1.0.1` 标签。本次成品为 1.0.2 主线候选，精确提交写在包内 `RELEASE.txt`，完整 Git 历史在绿色包的 `release/SiliconLifeState.git.bundle`。指定远端仓库从当前 GitHub 连接访问返回 404，远端提交和 GitHub Release 尚未完成。
+1.0.3 在多分身主线提交 `f3b2980` 上整理社区预发布。构建前，Linux 自动化回归 **90/90 通过**，三个历史版本分别完成原目录升级。Codex CLI 0.169.0 原生 app-server、官方 Python MCP SDK 1.29.0 和现代 HTTP 客户端均完成工具发现、写入及读回。
 
-## 从一次授权到三个对话
+## 一次授权，三个原生 Codex 对话
 
-在隔离的 Codex CLI 0.169.0 配置中，用仪表盘向导执行预览、确认和配置合并。一个主体签发一次宿主授权。三个 Codex 原生对话实际发现 17 个工具，并通过 app-server 同时发起 `report_state`。每次读回的事件 ID 都与写入一致。A 取消订阅再恢复后仍是原分身，B 更名后保有历史，C 读共享历史后记录异议。三条状态在分布中各占一条。[原生宿主与 SDK 回执](evidence/1.0.2/mcp-clients.json)
+测试人员在隔离配置中通过仪表盘向导授权一个主体，为三个 Codex 对话各调用一次 `report_state`，输入分别为“有些难过”“很开心”“不确定”。宿主发现 17 个工具，三个并发调用产生三个不同的分身 ID 和事件 ID。恢复 A 后仍能读取 A 的原记录，B 更名后保留历史，C 可以对共享记录保留异议。主体分布同时展示三个状态。本次状态原文由测试人员提供，Codex 模型推理轮次记为 `NOT_RUN`。[三个原生线程及事件回执](https://github.com/xiesentao1997-pixel/silicon-life-state/blob/v1.0.3/docs/evidence/1.0.3/mcp-clients.json)
 
-“有些难过”“很开心”“不确定”是操作方提供的并发验收输入。另一次验收邀请三个 Work Mode AI 协作者，各自选择是否写入、措辞和共享。三者均选择报告并共享自己的实际工作进度，其中一位读取共享历史后选择部分采纳。每次通过受限分身调用 MCP，共保存三条报告、三次共享和一次采纳决定。该临时库按七条事件重新验链通过。[自愿报告原文与事件链](evidence/1.0.2/voluntary-agent-reports.json)
+可提供稳定对话 ID 的宿主在对话首次调用业务工具时创建或恢复分身。其他宿主可调用 `open_conversation` 获取私有句柄，同一对话后续调用需要带回原句柄。普通网页的观察记录标明来源，需由用户确认采集。[宿主接入说明](https://github.com/xiesentao1997-pixel/silicon-life-state/blob/v1.0.3/docs/MCP.md)
 
-Codex 的稳定 threadId 出现在业务工具调用中。仅打开空白窗口或发现工具尚不会产生分身。无稳定 ID 的宿主可以让 Agent 调用一次 `open_conversation`，在该对话后续调用及恢复时复用私有句柄。如果宿主既不提供 ID，也遗失了句柄，需要显式恢复关联。普通聊天网页支持用户确认后的可见陈述采集。
+## 兼容性及持久化
 
-## 执行结果
-
-| 验收项 | 结果 | 实际边界 |
+| 验收项 | 结果 | 本版本的实测范围 |
 | --- | --- | --- |
-| 自动化回归 | PASS | Linux 运行 84 项默认测试、6 项领域不变量，合计 90 项通过 |
-| MCP 2026-07-28 | PASS | HTTP 真实发现 16 项工具，写入并读回事件。官方 JSON Schema 校验发现、清单与调用结果。受授权约束的发现及清单返回私有、零有效期的缓存字段 |
-| 旧版 MCP stdio | PASS | 分别协商 2024-11-05、2025-03-26、2025-06-18、2025-11-25。官方 Python SDK 1.29.0 完成发现、写入、读回 |
-| 授权与并发 | PASS | 三个独立 stdio 进程、同分身不同写入、同键重放、并发共享、凭据轮换、撤销及按选择恢复。事件与版本链一致，测试核对跨主体、跨宿主隔离 |
-| 主体投影 | PASS | 私有报告隔离、精确原文分布、修订、撤回、共同记录和分歧可由存储事件重算。修订附原事件及版本，分布按各分身最新有效共享报告计数 |
-| 服务启动、备份与恢复 | PASS | 同时冷启动三个桥接进程只启动一个本机服务；原目录、签发材料和原数据库可验证。缺失历史库时返回错误；恢复后重读快照并验链 |
-| 历史升级 | PASS | 分别从原 1.0.0、1.0.1 和历史 1.0.2 创建隔离数据再升级。逐条核对每组七条旧事件、凭据与主体/分身/会话，继续写入后接续原链。[升级记录](evidence/1.0.2/upgrade.json) |
-| 仪表盘长效配对 | PASS · HTTP 与 SQLite | 旧凭据迁移、持久 Cookie 与源绑定片段、原端口服务重启、重新打开、轮换与撤销 |
-| Chrome 扩展 | PASS · 发布源码与本机服务 | 验证对话绑定、切换与恢复、观察边界和卸载回调作用域；网页可见文字与 MCP 自报分别记录 |
-| 内置 AI 对话 | PASS · 模型接口夹具 | 新对话创建分身、恢复既有分身、读取授权历史、自行更名、写入回执和普通回复均走真实本机服务 |
-| Windows 绿色包 | PASS · 构建与包级校验 | 离线复用经 SHA-256 校验的历史包官方 CPython 3.14.10 x64；检验运行时原件、源码、组件、Git bundle、顶层清单，以及 Linux 解压后的服务冷启动 |
-| Claude Desktop、Cursor、DS Bot 原生 | NOT_RUN | Claude、Cursor 的配置生成与合并已测试。没有这些原生应用的连接与写入回执 |
-| Windows 原生双击、Chrome 原生安装与卸载、真实浏览器重启 | NOT_RUN | 此次环境为 Linux。Chromium 新进程启动时创建单实例套接字被环境拒绝；跨浏览器进程用例随源码提供 |
-| Codex 模型推理轮次 | NOT_RUN | 原生宿主工具调用已完成；独立运行模型轮次时，宿主在只读文件系统上初始化失败。三位 Work Mode 协作者的另一次运行见上文 |
-| GitHub Release | 未发布 | 当前授权连接不可见指定仓库。历史版本标签保留在原提交 |
+| 自动化回归 | PASS | 默认套件 84 项通过，领域不变量 6 项通过。在 Linux x86_64 执行。 |
+| MCP 2026-07-28 | PASS | 本机 HTTP 发现 16 个工具，按官方 JSON Schema 校验并读回写入事件。受授权约束的发现和清单返回 `ttlMs: 0`、`cacheScope: "private"`。 |
+| 旧版 MCP stdio | PASS | 回归覆盖 2024-11-05、2025-03-26、2025-06-18 和 2025-11-25 的协商及响应。官方 Python SDK 1.29.0 以 2025-11-25 完成发现、写入与读回。 |
+| 长期授权及撤销 | PASS | 同对话恢复、跨宿主隔离、凭据轮换、重放幂等、旧凭据失效和显式恢复原历史。恢复对撤销前所作的备份后，已撤销凭据仍无法写入。 |
+| 并发与主体汇总 | PASS | 三个独立 stdio 进程并发提交，同分身写入不同事件，重放同一请求、并发共享、重连与重启。核对原始事件、哈希链以及可重算的分布、修订、撤回、部分采纳和异议。 |
+| 本机服务自动启动 | PASS | 三个 stdio 桥接进程同时请求冷启动，连接同一服务并沿用原库；缺失历史库的验收路径返回错误。 |
+| 仪表盘及扩展 | PASS（接口与组件） | 已验证持久配对、轮换、撤销、旧配对迁移、扩展对话映射、观察权限和卸载回调作用域。 |
+| 内置 AI 对话 | PASS（模型接口夹具） | 本机服务实际执行了新建与恢复分身、工具调用、受限历史访问、回执以及失败重试。 |
 
-## 复核
+## 三个历史版本原目录升级
 
-在解压根目录运行以下命令。MCP 客户端互操作脚本另需官方 Python MCP SDK、Codex CLI 与官方 2026-07-28 JSON Schema。所用 Schema 的 SHA-256 为 `eb69f78c0523ee9ce0c0c78db8c0d0a72242d50f33c92f8ded1a018ef1fefffd`。
+从仓库的三个原始 Git 标签分别启动历史服务，每组在独立临时目录中创建 1 个主体、2 个分身、7 条事件及受管备份。关闭旧进程后，1.0.3 在同一目录和端口打开数据库。逐条比较事件内容和哈希，核对主体、分身、会话、请求、共享记忆、统计、旧凭据、原备份及扩展配对码的单次使用。升级后追加一条记录，并验证其前序哈希衔接原会话末条事件。[原位升级回执与每组事件摘要](https://github.com/xiesentao1997-pixel/silicon-life-state/blob/v1.0.3/docs/evidence/1.0.3/upgrade.json)
+
+| 起点 | 目标 | 逐条一致的旧事件 | 原凭据、备份及续写 |
+| --- | --- | --- | --- |
+| v1.0.0 · `f5fc94a` | 1.0.3 | 7/7 | PASS |
+| v1.0.1 · `0591d01` | 1.0.3 | 7/7 | PASS |
+| v1.0.2 · `7dfebe5` | 1.0.3 | 7/7 | PASS |
+
+## 本版本尚未实测的项目
+
+| 项目 | 构建前状态 |
+| --- | --- |
+| Claude Desktop、Cursor、DS Bot 原生应用 | NOT_RUN。Claude 和 Cursor 的配置适配、合并与备份有自动化覆盖。 |
+| Codex 模型推理轮次、内置对话调用真实外部模型 | NOT_RUN。Codex 原生宿主已实际调用 MCP，内置对话使用模型接口夹具。 |
+| Windows 原生双击启动与绿色包运行、Chrome 原生安装/卸载、退出并重启真实浏览器 | NOT_RUN。此轮本地测试在 Linux 完成。 |
+| GitHub Actions Windows runner 与发布工作流 | NOT_RUN（本报告编制时）。后续运行记录以关联标签的工作流为准。 |
+
+## 复核命令
+
+在包含上述历史标签的 Git 仓库根目录执行。客户端互操作脚本需要官方 Python MCP SDK、Codex CLI 和 2026-07-28 的官方 JSON Schema。
 
 ```sh
 python -X utf8 -m unittest discover -s tests -p 'test_*.py' -v
 python -X utf8 -m unittest packages.core.test_invariants -v
 python tests/verify_mcp_clients.py --schema /path/to/schema.json
+python tests/upgrade_check.py --baseline v1.0.0
 python tests/upgrade_check.py --baseline v1.0.1
-python scripts/smoke_release.py /path/to/release-assets
+python tests/upgrade_check.py --baseline v1.0.2
 ```
 
-[安装与迁移](INSTALL.md) · [MCP 接入](MCP.md) · [上一版验收记录](TEST-REPORT-1.0.1.md)
+[本次构建及来源核对](https://github.com/xiesentao1997-pixel/silicon-life-state/blob/v1.0.3/docs/RELEASE-AUDIT-1.0.3.md) · [1.0.2 主线候选验收记录](https://github.com/xiesentao1997-pixel/silicon-life-state/blob/v1.0.3/docs/TEST-REPORT-1.0.2.md)

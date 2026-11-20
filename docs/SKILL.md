@@ -4,13 +4,13 @@
 
 `silicon-life-state` 给具备工具能力的 Agent 提供使用说明，包括写入状态、查阅自己的历史、提出边界和处理其他分身的共享记录。宿主加载说明后，还需要连接本机 MCP 服务才能读写。
 
-安装前先下载完整包并启动本机服务。独立 SKILL ZIP 本身只有指导文件，无法替代 MCP、SQLite 或配对凭据。请将以下任选一种安装方式用于宿主实际支持的技能目录：
+## 单独安装
 
-- Release 文件：下载 `SiliconLifeState-1.0.2-Skill.zip`，解压得到 `silicon-life-state/SKILL.md`，将整个 `silicon-life-state` 文件夹放入宿主技能目录。
-- Git 克隆：`git clone https://github.com/xiesentao1997-pixel/silicon-life-state.git`，将 `packages/agent-skill/silicon-life-state` 文件夹复制或软链接至宿主技能目录。
-- 手动安装：读取 [权威 SKILL.md](../packages/agent-skill/silicon-life-state/SKILL.md)，保留 YAML frontmatter 与文件夹名一致。
+- [下载 v1.0.3 独立 SKILL ZIP](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Skill.zip)。解压，把整个 `silicon-life-state` 文件夹放入宿主支持的技能目录。
+- 想只取说明文件，可在宿主技能目录新建 `silicon-life-state` 文件夹，保存 [独立 SKILL.md 原文](https://raw.githubusercontent.com/xiesentao1997-pixel/silicon-life-state/v1.0.3/packages/agent-skill/silicon-life-state/SKILL.md) 为 `SKILL.md`，保留开头的 YAML 信息。也可从[仓库源码](https://github.com/xiesentao1997-pixel/silicon-life-state/tree/v1.0.3/packages/agent-skill/silicon-life-state)读取。
+- 已取得源码或 Windows 完整包的用户，可直接复制其中的 `packages/agent-skill/silicon-life-state/`。不同宿主的技能目录由各宿主定义。安装后，按宿主说明重新加载技能。
 
-宿主的技能目录及加载机制不统一，请根据宿主的正式说明设置；没有技能功能的宿主仍可通过 MCP 工具使用服务。GitHub 链接在公开发布后生效，不代表已上架任何官方市场。
+独立 SKILL 提供文字指导。要保存历史，请启动[Windows 本机服务](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Windows-x64-Portable.zip)，或在 macOS/Linux 上用带 SQLite 的 Python 3.10+ 运行源码根目录的 `sh start.sh`。下面的一次性宿主授权把工具接到你选择的主体。
 
 ## MCP 连接及确认
 

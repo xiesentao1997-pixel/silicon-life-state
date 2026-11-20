@@ -21,7 +21,7 @@ class HostWizardTests(unittest.TestCase):
     def setUp(self):
         tmp=tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        self.home=Path(tmp.name)
+        self.home=Path(tmp.name).resolve()
         self.store=Store(self.home/"data")
         self.server=LocalServer(0,self.store,Access(self.home/"data"))
         self.addCleanup(self.server.server_close)

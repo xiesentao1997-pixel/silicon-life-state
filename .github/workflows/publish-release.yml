@@ -1,15 +1,23 @@
 name: Publish verified release
 on:
+  push:
+    tags: ['v1.0.3']
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing project release tag
-        type: string
+        description: Existing main-line release tag
+        type: choice
         required: true
-        default: v1.0.2
+        options: [v1.0.3]
 
 permissions:
   contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+  PYTHONUTF8: '1'
 
 jobs:
   package:
@@ -17,27 +25,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: refs/tags/${{ env.RELEASE_TAG }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Build and check tagged assets
-        env:
-          RELEASE_TAG: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build the verified tag and test the unpacked Linux service
         run: |
           test "$RELEASE_TAG" = "v$(cat VERSION)"
           git merge-base --is-ancestor HEAD refs/remotes/origin/main
           python -m unittest discover -s tests -p 'test_*.py'
           python -m unittest packages.core.test_invariants
           python scripts/build_release.py --ref "$RELEASE_TAG" --fetch-runtime --output dist
-          python scripts/smoke_release.py dist
+          python scripts/smoke_release.py dist --tag "$RELEASE_TAG"
       - uses: actions/upload-artifact@v4
         with:
           name: release-assets
           path: dist/*
           if-no-files-found: error
+          overwrite: true
   windows:
     needs: package
     runs-on: windows-latest
@@ -46,30 +56,38 @@ jobs:
         with:
           name: release-assets
           path: assets
-      - name: Start and verify the extracted Windows release
+      - name: Run the same portable archive on Windows
         shell: pwsh
         run: |
           $zip = Get-Item assets/*-Windows-x64-Portable.zip
           Expand-Archive $zip.FullName -DestinationPath "$env:RUNNER_TEMP/release runner"
           $app = "$env:RUNNER_TEMP/release runner/SiliconLifeState"
-          & "$app/runtime/python.exe" -I "$app/tests/windows_portable_smoke.py"
+          & "$app/runtime/python.exe" -I "$app/tests/windows_portable_smoke.py" | Tee-Object windows-smoke.json
           exit $LASTEXITCODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-acceptance
+          path: windows-smoke.json
+          if-no-files-found: error
+          overwrite: true
   publish:
     needs: windows
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
           name: release-assets
           path: assets
-      - name: Publish tested assets to the invoking repository
+      - name: Publish or resume the verified pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ inputs.tag }}
         run: |
-          cd assets
-          sha256sum -c SHA256SUMS.txt
-          gh release create "$RELEASE_TAG" ./*.zip SHA256SUMS.txt TEST-REPORT.md README.md README.en.md INSTALL.zh-CN.md INSTALL.en.md RELEASE-AUDIT.md RELEASE-NOTES.md --verify-tag --title "Silicon Life State $RELEASE_TAG" --notes-file RELEASE-NOTES.md
+          (cd assets && sha256sum -c SHA256SUMS.txt)
+          python scripts/publish_release.py "$RELEASE_TAG" assets

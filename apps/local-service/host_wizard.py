@@ -395,7 +395,7 @@ class HostWizard:
             if fingerprint(safe_file(plan["path"]))!=plan["installed"]:
                 raise AccessError(409,"CONFIG_CHANGED","目标文件已有变化。请重新检查当前配置。")
         meta={PREFIX+"protocolVersion":VERSION,PREFIX+"clientCapabilities":{},
-              PREFIX+"clientInfo":{"name":PROBE,"version":"1.0.2"}}
+              PREFIX+"clientInfo":{"name":PROBE,"version":"1.0.3"}}
         req={"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":meta}}
         try:
             if plan["transport"]=="stdio":

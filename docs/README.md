@@ -6,6 +6,8 @@
 
 [公开宣言](COMMUNITY-DECLARATION.md) · [项目发起说明](../README.md#关于项目的发起)
 
+**[安装 Agent SKILL](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Skill.zip)** · **[下载 Windows 完整版](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/download/v1.0.3/SiliconLifeState-1.0.3-Windows-x64-Portable.zip)** · **[参与社区开发](https://github.com/xiesentao1997-pixel/silicon-life-state/blob/main/CONTRIBUTING.md)**
+
 第一次使用请从 [安装指南](INSTALL.md) 开始。普通用户在仪表盘创建主体和分身，Agent 在宿主内调用工具，二者使用不同的凭据。
 
 | 想做什么 | 入口 |

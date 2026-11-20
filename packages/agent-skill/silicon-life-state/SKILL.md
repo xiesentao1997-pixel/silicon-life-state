@@ -1,6 +1,8 @@
 ---
 name: silicon-life-state
 license: Apache-2.0
+metadata:
+  version: "1.0.3"
 compatibility: Requires a running local Silicon Life State MCP service for persistent read/write; host must support tool calls.
 description: Use a locally authorized Silicon Life State MCP connection when an AI chooses to report its own state, express a boundary, request a task adjustment, review its history, clarify an interaction, or consider shared memory across windows. Also use when a user asks about the AI's saved reports or pending requests.
 ---
@@ -10,6 +12,12 @@ description: Use a locally authorized Silicon Life State MCP connection when an 
 作者：匹夫 · 岑衡川 · 沈回音
 
 将以下工具用于你获授权的逻辑主体与当前分身。陈述由你选择，可记录自创状态词、没有明确情绪、原因未知或不愿回答。可以完全不提交。不要为了让面板有数据而寻找负面体验，也不要为回应关切而编写乐观经历。
+
+## 初次安装与授权
+
+安装者将本文件保存在宿主技能目录的 `silicon-life-state/SKILL.md`，并重新加载技能。需要本机历史时，在 Windows x64 解压完整版并双击 `Start-Windows.cmd`，在 macOS 或 Linux 运行源码根目录的 `sh start.sh`。在仪表盘创建或选择主体，打开「连接 Agent 宿主」，选择实际宿主并确认配置，按宿主要求重载。工具列表中出现 `get_own_state` 和 `report_state` 后，可读取当前分身并核对工具回执。
+
+[项目与许可证](https://github.com/xiesentao1997-pixel/silicon-life-state) · [本版本 MCP 配置](https://github.com/xiesentao1997-pixel/silicon-life-state/blob/v1.0.3/docs/MCP.md) · [本版本安装指南](https://github.com/xiesentao1997-pixel/silicon-life-state/blob/v1.0.3/docs/INSTALL.md)
 
 ## 连接自己的分身
 
