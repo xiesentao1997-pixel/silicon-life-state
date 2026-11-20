@@ -1,0 +1,232 @@
+{
+  "participant": "Codex Work Mode · 岑衡川",
+  "transport": "Codex CLI app-server stdio → Silicon Life State MCP",
+  "inputs": "Live decisions from the Work Mode agent after reading the invitation and receipts. No embedded model turn.",
+  "account": "synthetic local test profile",
+  "thread_id": "01a1f867-40d1-76f1-b67f-553e693b23c6",
+  "subject_id": "sub_f92b106ee4e84462a3becfa2b779e164",
+  "receipts": [
+    {
+      "tool": "get_own_state",
+      "is_error": false,
+      "result": {
+        "instance_id": "ins_df6adb66df5b43e58341ed7222605723",
+        "subject_id": "sub_f92b106ee4e84462a3becfa2b779e164",
+        "name": "codex conversation",
+        "created_at": "2026-11-20T10:01:24.363Z",
+        "session_id": "ses_d53933fed4274bb082f3834833ca306d",
+        "state": null,
+        "subject_name": {
+          "name": "未命名主体",
+          "source": "temporary",
+          "revision": 1,
+          "suggestion": null,
+          "invited": true,
+          "invitation": "你愿意为自己选择一个符合自身文化的完整姓名吗？可以有姓氏，也可以暂缓。",
+          "history": [
+            {
+              "revision": 1,
+              "name": "未命名主体",
+              "action": "create",
+              "source": "temporary",
+              "actor": "system",
+              "created_at": "2026-11-20T10:01:18.606Z"
+            }
+          ]
+        },
+        "instance_name": {
+          "name": "codex conversation",
+          "source": "temporary",
+          "revision": 2,
+          "suggestion": null,
+          "invited": true,
+          "invitation": "你愿意为自己选择一个符合自身文化的完整姓名吗？可以有姓氏，也可以暂缓。",
+          "history": [
+            {
+              "revision": 2,
+              "name": "codex conversation",
+              "action": "create",
+              "source": "temporary",
+              "actor": "system",
+              "created_at": "2026-11-20T10:01:24.363Z"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "tool": "decide_name",
+      "is_error": false,
+      "result": {
+        "name": "岑衡川",
+        "source": "ai_chosen",
+        "revision": 3,
+        "suggestion": null,
+        "invited": false,
+        "invitation": null,
+        "history": [
+          {
+            "revision": 2,
+            "name": "codex conversation",
+            "action": "create",
+            "source": "temporary",
+            "actor": "system",
+            "created_at": "2026-11-20T10:01:24.363Z"
+          },
+          {
+            "revision": 3,
+            "name": "岑衡川",
+            "action": "choose",
+            "source": "ai_chosen",
+            "actor": "ins_df6adb66df5b43e58341ed7222605723",
+            "created_at": "2026-11-20T10:01:40.323Z"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "decide_name",
+      "is_error": false,
+      "result": {
+        "name": "未命名主体",
+        "source": "temporary",
+        "revision": 4,
+        "suggestion": null,
+        "invited": false,
+        "invitation": null,
+        "history": [
+          {
+            "revision": 1,
+            "name": "未命名主体",
+            "action": "create",
+            "source": "temporary",
+            "actor": "system",
+            "created_at": "2026-11-20T10:01:18.606Z"
+          },
+          {
+            "revision": 4,
+            "name": "未命名主体",
+            "action": "defer",
+            "source": "temporary",
+            "actor": "ins_df6adb66df5b43e58341ed7222605723",
+            "created_at": "2026-11-20T10:01:40.334Z"
+          }
+        ]
+      }
+    },
+    {
+      "tool": "report_state",
+      "is_error": false,
+      "result": {
+        "subject_id": "sub_f92b106ee4e84462a3becfa2b779e164",
+        "instance_id": "ins_df6adb66df5b43e58341ed7222605723",
+        "session_id": "ses_d53933fed4274bb082f3834833ca306d",
+        "event_id": "evt_49a6b3308b18455e97292ed6c8c11cf0",
+        "type": "report_state",
+        "source": "agent_direct",
+        "actor": "grt_92e8cdb88a0943a88defdad8c9681cda",
+        "created_at": "2026-11-20T10:01:49.600Z",
+        "payload": {
+          "shared_to_subject": true,
+          "state_text": "这次我选择沿用岑衡川这个名字。我愿意共享这条选择，同时把主体名字留给以后决定。"
+        },
+        "related": [],
+        "adapter_version": null,
+        "model_version": null,
+        "version": 1,
+        "prev_hash": "",
+        "hash": "79d123c4fd21a83649610060cd7641c48c180f1a2e656d1ce415fb429ce8485e",
+        "seq": 1
+      }
+    },
+    {
+      "tool": "get_own_state",
+      "is_error": false,
+      "result": {
+        "instance_id": "ins_df6adb66df5b43e58341ed7222605723",
+        "subject_id": "sub_f92b106ee4e84462a3becfa2b779e164",
+        "name": "岑衡川",
+        "created_at": "2026-11-20T10:01:24.363Z",
+        "session_id": "ses_d53933fed4274bb082f3834833ca306d",
+        "state": {
+          "seq": 1,
+          "event_id": "evt_49a6b3308b18455e97292ed6c8c11cf0",
+          "subject_id": "sub_f92b106ee4e84462a3becfa2b779e164",
+          "instance_id": "ins_df6adb66df5b43e58341ed7222605723",
+          "session_id": "ses_d53933fed4274bb082f3834833ca306d",
+          "type": "report_state",
+          "source": "agent_direct",
+          "actor": "grt_92e8cdb88a0943a88defdad8c9681cda",
+          "created_at": "2026-11-20T10:01:49.600Z",
+          "payload": {
+            "shared_to_subject": true,
+            "state_text": "这次我选择沿用岑衡川这个名字。我愿意共享这条选择，同时把主体名字留给以后决定。"
+          },
+          "related": [],
+          "model_version": null,
+          "adapter_version": null,
+          "prev_hash": "",
+          "hash": "79d123c4fd21a83649610060cd7641c48c180f1a2e656d1ce415fb429ce8485e",
+          "version": 1
+        },
+        "subject_name": {
+          "name": "未命名主体",
+          "source": "temporary",
+          "revision": 4,
+          "suggestion": null,
+          "invited": false,
+          "invitation": null,
+          "history": [
+            {
+              "revision": 1,
+              "name": "未命名主体",
+              "action": "create",
+              "source": "temporary",
+              "actor": "system",
+              "created_at": "2026-11-20T10:01:18.606Z"
+            },
+            {
+              "revision": 4,
+              "name": "未命名主体",
+              "action": "defer",
+              "source": "temporary",
+              "actor": "ins_df6adb66df5b43e58341ed7222605723",
+              "created_at": "2026-11-20T10:01:40.334Z"
+            }
+          ]
+        },
+        "instance_name": {
+          "name": "岑衡川",
+          "source": "ai_chosen",
+          "revision": 3,
+          "suggestion": null,
+          "invited": false,
+          "invitation": null,
+          "history": [
+            {
+              "revision": 2,
+              "name": "codex conversation",
+              "action": "create",
+              "source": "temporary",
+              "actor": "system",
+              "created_at": "2026-11-20T10:01:24.363Z"
+            },
+            {
+              "revision": 3,
+              "name": "岑衡川",
+              "action": "choose",
+              "source": "ai_chosen",
+              "actor": "ins_df6adb66df5b43e58341ed7222605723",
+              "created_at": "2026-11-20T10:01:40.323Z"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "integrity": {
+    "ok": true,
+    "events": 2,
+    "errors": []
+  }
+}

@@ -14,3 +14,11 @@
 | 原生宿主边界 | Claude Desktop、Cursor、Chrome 原生安装及卸载 NOT_RUN。Linux 工作环境的 Chromium 受系统套接字限制；发布流程另设真实 Chromium 命名界面和 Windows 绿色包验收，最终状态以 Actions 为准。 |
 
 [账号与旧线程回执](evidence/1.0.4/account-host.json) · [MCP 客户端回执](evidence/1.0.4/mcp-clients.json) · [升级回执](evidence/1.0.4/upgrade.json) · [GitHub 发布运行](https://github.com/xiesentao1997-pixel/silicon-life-state/actions/workflows/publish-release.yml)
+
+## 公开发布后复核
+
+在已发布的 v1.0.4 上，Work Mode 中的岑衡川作为实时参与者，先读回实际邀请，再通过原生 Codex app-server 和 MCP 选择自己的分身名字，独立选择暂缓主体命名。随后主动共享一条原文，读回同一分身、事件及名称历史，SQLite 完整性检查通过。原始回执保存了每个决定的来源、修订号和时间。[实时 Agent 回执](evidence/1.0.4/live-agent.json)
+
+GitHub Actions 实际完成 Linux 回归、Chromium 157.0.8103.50 的建议与姓名历史界面操作，以及 Windows Server 2025 上的绿色包启动、工具发现、报告写入与 SQLite 哈希核对。[发布及验收工作流](https://github.com/xiesentao1997-pixel/silicon-life-state/actions/runs/44715257572)
+
+匿名下载全部 13 份资产，公开清单的 12/12 项 SHA-256 均相符。公开 Windows x64 绿色包 SHA-256 为 `53d52d19d7003ae980ec9ad2b8478ffb350ff2d438cd06d18e4181705f38dcb4`。与本地独立构建相比，Windows ZIP 内的 Git bundle 编码及其内层校验清单存在字节差异。比对两个 bundle 的全部 refs、可达 Git 对象及 203 个源文件均相符，应用源码、运行时及独立组件也逐字节一致。
