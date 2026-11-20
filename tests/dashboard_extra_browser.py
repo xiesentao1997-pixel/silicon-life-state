@@ -90,14 +90,17 @@ def main():
                     "protocolVersion":"2025-11-25","clientInfo":{"name":"dashboard-qa","version":"1"},"capabilities":{}}},
                 {"jsonrpc":"2.0","method":"notifications/initialized"},
                 {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}},
-                {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_own_state","arguments":{}}}
+                {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_own_state","arguments":{},"_meta":{"dev.silicon-life-state/conversationId":"fixture-thread"}}}
             ]
             child = subprocess.run([config["command"],*config["args"]],env={**os.environ,**config["env"]},
                                    input="".join(json.dumps(msg)+"\n" for msg in requests),capture_output=True,
                                    text=True,encoding="utf-8",timeout=20,check=True)
             results = {r["id"]:r for r in map(json.loads,child.stdout.splitlines()) if "id" in r}
             assert "report_state" in {t["name"] for t in results[2]["result"]["tools"]}
-            assert results[3]["result"]["structuredContent"]["instance_id"] == iid
+            own = results[3]["result"]["structuredContent"]
+            assert own["instance_id"] != iid
+            assert any(row["instance_id"] == own["instance_id"] and row["subject_id"] == sid
+                       for row in service.api("snapshot")["instances"])
             page.locator("[data-wiz=status]").click()
             expect(status).to_contain_text("dashboard-qa")
             if args.output:
@@ -113,9 +116,9 @@ def main():
             passed.append("Live stdio tools/list probe, an independent stdio client's discovery, and no report displayed separately")
 
             page.locator(".nav-item[data-val=settings]").click()
-            page.locator("[data-act=revoke-agent]").click()
+            page.locator("[data-act=revoke-installation]").first.click()
             form.locator("button[type=submit]").click()
-            expect(page.get_by_text("暂无分身凭据")).to_be_visible()
+            expect(page.locator("[data-act=restore-installation]")).to_be_visible()
             assert not service.api("credentials")["grants"]
             passed.append("UI issued and revoked a real scoped credential")
 

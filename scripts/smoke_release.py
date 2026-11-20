@@ -98,12 +98,18 @@ def main():
         prefix = ["git", "-C", str(git_dir)]
         assert subprocess.check_output(prefix + ["branch", "--show-current"]).decode().strip() == "main"
         tag = "v" + (tree / "VERSION").read_text().strip()
-        assert subprocess.check_output(prefix + ["rev-parse", "HEAD"]) == subprocess.check_output(prefix + ["rev-parse", tag + "^{commit}"])
+        actual_sha = subprocess.check_output(prefix + ["rev-parse", "HEAD"], text=True).strip()
+        tag_sha = subprocess.check_output(prefix + ["rev-parse", tag + "^{commit}"], text=True).strip()
+        metadata = (tree / "RELEASE.txt").read_text()
+        if "Build: candidate" in metadata.splitlines():
+            assert f"Historical tag: {tag} ({tag_sha})" in metadata.splitlines()
+            subprocess.run(prefix + ["merge-base", "--is-ancestor", tag_sha, actual_sha], check=True)
+        else:
+            assert actual_sha == tag_sha and f"Release tag: {tag}" in metadata.splitlines()
         subprocess.run(prefix + ["merge-base", "--is-ancestor", "v1.0.0", tag], check=True)
         assert (git_dir / "Start-Windows.cmd").is_file()
-        actual_sha = subprocess.check_output(prefix+["rev-parse",tag+"^{commit}"]).decode().strip()
         assert "Git commit: " + actual_sha in (tree / "RELEASE.txt").read_text()
-    print(f"PASS · {len(sums)} hashes · complete ZIP + standalone service cold starts · extension + SKILL match · bundled x64 runtime integrity · git clone default main/tag {actual_sha}")
+    print(f"PASS · {len(sums)} hashes · complete ZIP + standalone service cold starts · extension + SKILL match · bundled x64 runtime integrity · git clone default main {actual_sha}")
 
 
 if __name__ == "__main__":

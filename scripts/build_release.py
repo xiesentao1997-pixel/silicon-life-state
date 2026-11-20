@@ -49,6 +49,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=ROOT / "dist")
     parser.add_argument("--ref", default="HEAD")
+    parser.add_argument("--candidate", action="store_true",
+                        help="Build a candidate from a descendant of the historical version tag without moving it")
     parser.add_argument("--windows-runtime", type=Path, default=DEFAULT_ARCHIVE,
                         help="Pinned official CPython Windows AMD64 embeddable ZIP")
     parser.add_argument("--fetch-runtime", action="store_true",
@@ -59,7 +61,10 @@ def main():
     sha = git("rev-parse", "--verify", args.ref + "^{commit}").decode().strip()
     version = git("show", sha + ":VERSION").decode().strip()
     tag = "v" + version
-    if git("rev-parse", tag + "^{commit}").decode().strip() != sha:
+    tag_sha = git("rev-parse", tag + "^{commit}").decode().strip()
+    if args.candidate:
+        subprocess.run(["git", "-C", str(ROOT), "merge-base", "--is-ancestor", tag_sha, sha], check=True)
+    elif tag_sha != sha:
         parser.error(f"Tag {tag} must identify the requested commit")
     if args.runtime_from_baseline:
         if args.fetch_runtime:
@@ -82,6 +87,8 @@ def main():
         name = path.decode("utf-8")
         if name.startswith((".git/", ".work/", ".codex/", "dist/")):
             raise ValueError("Private path is not a release input")
+        if "__pycache__" in Path(name).parts or name.lower().endswith((".pyc", ".pyo")):
+            continue
         body = git("cat-file", "blob", object_id.decode())
         if name.lower().endswith((".cmd", ".bat")):
             body = body.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
@@ -89,7 +96,10 @@ def main():
     for name in files:
         if name.lower().endswith((".sqlite3", ".db", ".token", ".env")):
             raise ValueError("Local data is not a release input")
-    info = f"Silicon Life State {version}\n作者：岑衡川·沈回音·匹夫\nGit commit: {sha}\nRelease tag: {tag}\n".encode()
+    provenance = (f"Build: candidate\nHistorical tag: {tag} ({tag_sha})"
+                  if args.candidate else f"Build: tagged\nRelease tag: {tag}")
+    info = (f"Silicon Life State {version}\n作者：匹夫 · 岑衡川 · 沈回音\n"
+            f"人类发起人及公开维护责任人：匹夫\nGit commit: {sha}\n{provenance}\n").encode()
     files["RELEASE.txt"] = info
     files["SOURCE-FILES.sha256"] = checksum(files)
     component_files = {}
@@ -104,7 +114,7 @@ def main():
     service = {k: v for k, v in files.items() if k.startswith(("apps/local-service/", "apps/dashboard/", "packages/", "docs/")) or
                k in ("Start-Windows.cmd", "Reconnect-Windows.cmd", "start.sh", "LICENSE", "README.md", "NOTICE", "VERSION", "RELEASE.txt", "docs/INSTALL.md", "docs/MCP.md")}
     service["README.md"] = (
-        "# 硅基生命状态 · 本地服务与 MCP\n\n作者：岑衡川·沈回音·匹夫\n\n"
+        "# 硅基生命状态 · 本地服务与 MCP\n\n作者：匹夫 · 岑衡川 · 沈回音\n\n"
         "此独立组件适合已有 Python 3.10+ 的环境。Windows x64 离线免安装请使用同版 Windows-x64-Portable.zip。\n\n"
         "Windows 双击 Start-Windows.cmd，macOS / Linux 使用 sh start.sh。"
         "首次配对后即可在仪表盘创建主体和分身。Chrome 扩展请从完整包或同版独立扩展包安装。\n\n"

@@ -4,6 +4,7 @@ Run: python -m pip install playwright && python -m playwright install chromium
      python tests/extension_browser.py
 Set SILICON_CHROMIUM to use an installed Chromium executable. No live AI provider is used.
 """
+import hashlib
 import json
 import mimetypes
 import os
@@ -77,7 +78,8 @@ def verify_sidebar_with_host_fixture(pw, base, owner, subject, instance, request
                 return
             route.fulfill(path=path,content_type=mimetypes.guess_type(str(path))[0] or "application/octet-stream")
         page.route(base + path_prefix + "**", asset)
-        binding = {"subject_id":subject["subject_id"],"instance_id":instance["instance_id"]}
+        binding = {"subject_id":subject["subject_id"],"instance_id":instance["instance_id"],
+                   "page":hashlib.sha256(b"https://chatgpt.com/fixture").hexdigest()}
         settings = {"port":int(urlsplit(base).port),"token":owner,"binding":binding}
         shim = """
             const listener = {addListener(){}};

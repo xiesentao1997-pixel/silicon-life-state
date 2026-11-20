@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .validation import canonical, digest, fail
 
-SCHEMA = 1
+SCHEMA = 2
 MIGRATIONS = Path(__file__).with_name('migrations')
 _LOCKS = {}
 _LOCKS_GUARD = threading.Lock()
@@ -22,9 +22,9 @@ def event_hash(ev):
     return digest(canonical({key:ev[key] for key in keys}))
 
 
-def verify_db(conn):
+def verify_db(conn, *, allow_legacy=False):
     errors = []
-    if conn.execute('PRAGMA user_version').fetchone()[0]!=SCHEMA:
+    if conn.execute('PRAGMA user_version').fetchone()[0] not in ((1, SCHEMA) if allow_legacy else (SCHEMA,)):
         errors.append('Unsupported schema version.')
     check = conn.execute('PRAGMA integrity_check').fetchall()
     if [r[0] for r in check]!=['ok']:
@@ -40,6 +40,16 @@ def verify_db(conn):
         tips[ev['session_id']] = (ev['hash'],ev['version'])
         count += 1
     return {'ok':not errors,'events':count,'errors':errors}
+
+
+def migrate(conn):
+    version = conn.execute('PRAGMA user_version').fetchone()[0]
+    if version > SCHEMA:
+        fail('FUTURE_SCHEMA','Database belongs to a newer version.',409)
+    scripts = ('001_initial.sql', '002_installations.sql')
+    for filename in scripts[version:]:
+        sql = (MIGRATIONS / filename).read_text(encoding='utf-8')
+        conn.executescript('BEGIN IMMEDIATE;\n' + sql + '\nCOMMIT;')
 
 
 class Files:
@@ -107,13 +117,8 @@ class Files:
             conn.execute('PRAGMA trusted_schema=OFF')
             conn.execute('PRAGMA secure_delete=ON')
             conn.execute('PRAGMA synchronous=FULL')
-            version = conn.execute('PRAGMA user_version').fetchone()[0]
-            if version>SCHEMA:
-                fail('FUTURE_SCHEMA','Database belongs to a newer version.',409)
             conn.execute('PRAGMA journal_mode=WAL')
-            if version==0:
-                script = (MIGRATIONS/'001_initial.sql').read_text(encoding='utf-8')
-                conn.executescript('BEGIN IMMEDIATE;\n'+script+'\nCOMMIT;')
+            migrate(conn)
             if self.pending_erasure.exists():
                 self.finish_erasure(conn)
             yield conn

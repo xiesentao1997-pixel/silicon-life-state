@@ -49,7 +49,9 @@ def deletion(scope):
 
 
 def document():
+    from catalog import subject_summary_schema
     schemas = {
+        "SubjectSummary": subject_summary_schema(ref("Event")),
         "Subject": obj({"subject_id": ID, "name": ID, "created_at": DATE, "level": INT}),
         "Instance": obj({"subject_id": ID, "instance_id": ID, "session_id": ID, "name": ID}),
         "Event": obj({"event_id": ID, "subject_id": ID, "instance_id": ID, "session_id": ID,
@@ -63,7 +65,7 @@ def document():
                       "subject_id": {"type": ["string", "null"]}}),
         "Settings": obj({"observation_enabled": BOOL}),
         "Snapshot": obj({"subjects": array(ref("Subject")), "instances": array(ref("Instance")), "events": array(ref("Event")),
-                         "report_states": array(ref("Event")), "requests": array(ref("Request")), "memory": {"type": "object"}, "stats": {"type": "object"},
+                         "subject_summaries": array(ref("SubjectSummary")), "report_states": array(ref("Event")), "requests": array(ref("Request")), "memory": {"type": "object"}, "stats": {"type": "object"},
                          "generated_at": DATE}),
         "Error": obj({"error": obj({"code": STRING, "message": STRING})}),
     }
@@ -81,8 +83,16 @@ def document():
         return desc
 
     route("health", "get", "health", obj({"ok": BOOL, "version": STRING, "local_only": BOOL}), public=True)
-    route("pair", "post", "exchangeOneTimeCode", obj({"token": STRING, "expires_in": INT, "role": {"const": "owner"}}),
+    route("pair", "post", "exchangeOneTimeCode", obj({"token": STRING, "expires_in": {"type":["integer","null"]}, "role": {"const": "owner"}}),
           obj({"code": STRING}, strict=True), public=True)
+    browser_reply = obj({"binding": STRING, "role": {"const":"owner"}})
+    dashboard_auth = [{"dashboardBinding":[]}]
+    route("browser/pair", "post", "pairPersistentBrowser", browser_reply, obj({"code":STRING}, strict=True), public=True)
+    route("browser/upgrade", "post", "upgradeLegacyBrowser", browser_reply, obj({}, strict=True))["security"] = [{"ownerBearer":[]}]
+    route("browser/session", "get", "renewDashboardCookie", browser_reply)["security"] = dashboard_auth
+    route("pair/rotate", "post", "rotateBrowserCredential", {"oneOf":[browser_reply,obj({"token":STRING})]}, obj({}, strict=True))
+    route("extension/uninstalled", "post", "retireUninstalledExtension", obj({"revoked":BOOL}),
+          obj({"ticket":{"type":"string","pattern":"^[0-9a-f]{64}$"}}, strict=True), public=True)
     route("pair/code", "post", "createPairCode", obj({"code": STRING, "expires_in": INT, "expires_at": DATE, "server_time": DATE, "target": TARGET}),
           obj({"target": TARGET, "idempotency_key": KEY, "replaces": STRING}, ["idempotency_key"], strict=True))
     route("pair/status", "post", "getPairCodeStatus", obj({"state": enum("active","expired","used","replaced","unavailable"),
@@ -90,8 +100,8 @@ def document():
           obj({"code": STRING}, strict=True))
     route("hosts/preview", "post", "previewHostConfig", obj({"plan_id":STRING,"can_write":BOOL,
           "preview":STRING,"target":{"type":["string","null"]},"status":{"type":"object"}}),
-          obj({"host":enum("claude","codex","other"),"transport":enum("stdio","http"),
-               "subject_id":ID,"instance_id":ID,"idempotency_key":KEY},["host","subject_id","instance_id"],strict=True))
+          obj({"host":enum("claude","codex","cursor","other"),"transport":enum("stdio","http"),
+               "subject_id":ID,"instance_id":ID,"idempotency_key":KEY},["host","subject_id"],strict=True))
     for step in ("apply","copy","probe","status"):
         route("hosts/"+step, "post", step+"HostConfig", {"type":"object"},
               obj({"plan_id":STRING,"confirm":BOOL,"idempotency_key":KEY},
@@ -109,6 +119,20 @@ def document():
     route("subjects", "get", "listSubjects", obj({"subjects": array(ref("Subject"))}))
     route("subjects", "post", "createSubject", ref("Subject"), write({"name": ID}))
     route("instances", "post", "createInstance", ref("Instance"), write({"subject_id": ID, "name": ID}))
+    route("subjects/rename","post","renameSubject",ref("Subject"),write({"subject_id":ID,"name":ID}))
+    route("instances/rename","post","renameInstance",ref("Instance"),write({"instance_id":ID,"name":ID}))
+    installation = obj({"installation_id":ID,"subject_id":ID,"host":ID,"active":BOOL,"created_at":DATE})
+    route("installations","get","listInstallations",obj({"installations":array(installation)}))
+    route("installations","post","issueInstallation",obj({**installation["properties"],"token":STRING}),
+          write({"subject_id":ID,"host":ID,"instance_id":ID},["host","subject_id"]))
+    for action in ("revoke","restore","rotate"):
+        prop = {"revoked":BOOL} if action=="revoke" else {"token":STRING}
+        route("installations/"+action,"post",action+"Installation",obj({**installation["properties"],**prop}),
+              write({"installation_id":ID}))
+    route("installations/bind","post","bindHostConversation",obj({
+        "installation_id":ID,"subject_id":ID,"instance_id":ID,"session_id":ID,"grant_id":ID,"token":STRING}),
+          obj({"conversation_id":ID,"name":ID},["conversation_id"],strict=True))["security"] = [{"installationBearer":[]}]
+    route("installations/inspect","post","inspectInstallation",installation,obj({},strict=True))["security"] = [{"installationBearer":[]}]
     route("credentials", "get", "listAgentGrants", obj({"grants": array(obj({
         "grant_id": ID, "subject_id": {"type": ["string","null"]},
         "instance_id": {"type": ["string","null"]}, "created_at": DATE}))}))
@@ -121,11 +145,13 @@ def document():
         observation("model_estimated", {"event_id": ID, "alpha": {"type": "number", "minimum": 0, "maximum": 1}}, ["event_id"])
     ]})
     route("chat/connect", "post", "connectModel", obj({
-        "chat_id":ID, "instance_id":ID, "session_id":ID, "model":STRING,
+        "chat_id":ID, "instance_id":ID, "instance_name":STRING, "session_id":ID, "model":STRING,
         "provider_status":enum("model_listed","model_unlisted","catalog_unavailable"),
         "tools":array(STRING), "idle_timeout_seconds":INT}),
-        obj({"instance_id":ID,"base_url":STRING,"model":ID,"api_key":{"type":"string","writeOnly":True},
-             "allow_remote":BOOL,"idempotency_key":KEY},["instance_id","base_url","model"], strict=True))
+        {"oneOf": [obj({scope:ID,"base_url":STRING,"model":ID,"api_key":{"type":"string","writeOnly":True},
+                         "allow_remote":BOOL,"allow_history_tools":BOOL,"idempotency_key":KEY},
+                        [scope,"base_url","model"] + (["idempotency_key"] if scope == "subject_id" else []), strict=True)
+                   for scope in ("instance_id", "subject_id")]})
     route("chat/message", "post", "sendChatMessage", obj({
         "reply":STRING,"model":STRING,"status":enum("answered","tool_limit"),"tool_errors":array(obj({"tool":STRING,"code":STRING})),
         "tool_events":array(obj({"ok":BOOL,"event_id":ID,"source":STRING,
@@ -144,10 +170,15 @@ def document():
           {"oneOf": [deletion(scope) for scope in ("subject","session","all")]})
     return {"openapi": "3.1.0", "info": {"title": "Silicon Life State · owner API", "version": "1.0.2"},
             "servers": [{"url": "/"}], "paths": paths,
-            "components": {"schemas": schemas, "securitySchemes": {"ownerBearer": {"type": "http", "scheme": "bearer"}}},
-            "security": [{"ownerBearer": []}]}
+            "components": {"schemas": schemas, "securitySchemes": {"installationBearer":{"type":"http","scheme":"bearer"},"ownerBearer": {"type": "http", "scheme": "bearer"},
+                "dashboardBinding":{"type":"apiKey","in":"header","name":"X-SLS-Dashboard",
+                    "description":"Requires the matching HttpOnly sls_dashboard_<service port> cookie and same-origin POST."}}},
+            "security": [{"ownerBearer": []}, *dashboard_auth]}
 
 
 if __name__ == "__main__":
     import json
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "packages/mcp-server"))
     print(json.dumps(document(), indent=2, ensure_ascii=False))

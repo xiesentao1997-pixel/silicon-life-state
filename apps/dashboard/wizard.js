@@ -1,6 +1,6 @@
 import {h} from './views.js';
 
-const names = {claude: 'Claude Desktop', codex: 'Codex CLI', other: '其他 MCP 宿主'};
+const names = {claude: 'Claude Desktop', codex: 'Codex CLI', cursor: 'Cursor', other: '其他 MCP 宿主'};
 const platform = {win32: 'Windows', darwin: 'macOS', linux: 'Linux'};
 const btn = (key, label, primary = false) =>
   '<button type="button" class="btn' + (primary ? ' primary' : '') + '" data-wiz="' + key + '">' + h(label) + '</button>';
@@ -11,28 +11,39 @@ function activity(status) {
   return '<dl class="kv">' +
     row('向导工具发现', probe ? probe.transport + ' · 已发现 ' + probe.tools.length + ' 个工具 · ' + probe.at : '尚未试连') +
     row('宿主工具发现', discovery ? discovery.client + ' · 已调用 tools/list · ' + discovery.at : '服务本次启动后，尚未观测到其他客户端发现工具') +
-    row('分身自主报告', report ? '已收到经 Agent 凭据提交的报告 · ' + report.at + ' · ' + report.event_id : '尚未收到此分身通过 Agent 工具提交的状态') +
+    row('分身自主报告', report ? '已收到经 Agent 凭据提交的报告 · ' + report.at + ' · ' + report.event_id : '此授权范围尚未收到通过 Agent 工具提交的状态') +
     '</dl><p class="quiet">客户端名称由宿主自报。核验具体模型时，可在宿主工具回执与事件页对照同一事件 ID。</p>';
 }
 
-export function hostWizard({modal, api, toast, instanceField, subjectId, instanceId}) {
+export function hostWizard({modal, api, toast, instanceField, subjectId, instanceId, hasInstances}) {
   modal('连接 Agent 宿主',
-    instanceField(instanceId) +
     '<label class="field">宿主<select name="host"><option value="claude">Claude Desktop</option>' +
-    '<option value="codex">Codex CLI</option><option value="other">其他 MCP 宿主</option></select></label>' +
+    '<option value="codex">Codex CLI</option><option value="cursor">Cursor</option><option value="other">其他 MCP 宿主</option></select></label>' +
     '<div id="wiz-transport" hidden><label class="field">连接方式<select name="transport"><option value="stdio">本机 stdio</option>' +
     '<option value="http">本机 Streamable HTTP</option></select></label></div>' +
+    '<div id="wiz-instance" hidden>' + (hasInstances ? instanceField(instanceId) : '使用 HTTP 前，请先创建用于绑定的独立分身。') + '</div>' +
+    '<p class="quiet">每个系统账户和宿主配置单独授权。使用同一宿主访问不同账号时，请分别使用隔离的宿主配置。未传入可靠对话标识的宿主，需让 Agent 在原对话保存工具返回的分身句柄，之后凭句柄恢复。</p>' +
     '<p class="quiet">检查目标文件和语法后，你可以复制本项目条目、确认写入或测试本机连接。</p>',
     async f => {
       const form = document.querySelector('#form');
-      const plan = await api('hosts/preview', {host: f.host, subject_id: subjectId, instance_id: f.instance_id,
-        transport: f.host === 'other' ? f.transport : 'stdio'});
+      const transport = f.host === 'other' ? f.transport : 'stdio';
+      if (transport === 'http' && !f.instance_id) throw Error('HTTP 直连需要先在分身管理中创建或选择独立分身。');
+      const plan = await api('hosts/preview', {host: f.host, subject_id: subjectId, transport,
+        ...(transport === 'http' ? {instance_id: f.instance_id} : {})});
       if (form?.isConnected) preview(f.host, plan);
     }, '检查配置');
   const select = document.querySelector('#dialog select[name=host]');
-  select.addEventListener('change', () => {
+  const transport = document.querySelector('#dialog select[name=transport]');
+  const setTransport = () => {
     document.querySelector('#wiz-transport').hidden = select.value !== 'other';
-  });
+    const direct = select.value === 'other' && transport.value === 'http';
+    const field = document.getElementById('wiz-instance');
+    field.hidden = !direct;
+    if (field.querySelector('select')) field.querySelector('select').disabled = !direct;
+  };
+  select.addEventListener('change', setTransport);
+  transport.addEventListener('change', setTransport);
+  setTransport();
 
   function preview(host, plan) {
     const rootId = 'host-wizard-preview';
@@ -42,7 +53,7 @@ export function hostWizard({modal, api, toast, instanceField, subjectId, instanc
       row('配置路径', plan.target || '由宿主的连接设置指定') +
       row('配置检查', plan.can_write ? (plan.existing_file ? '原配置语法有效 · ' : '目标文件尚未建立 · ') + plan.action : plan.reason) +
       '</dl>';
-    const safe = '<p class="note">配置包含此分身的授权令牌。复制或写入时将使用该分身的现有凭据，首次使用会创建凭据。</p>';
+    const safe = '<p class="note">本机 stdio 配置引用当前宿主专用的私有凭据文件。HTTP 直连配置包含选定分身的令牌，仅保存在本机。</p>';
     const writeActions = plan.can_write
       ? '<p class="quiet">确认后将保留其他服务与设置；已有目标文件会先在旁边生成私有备份。</p>' + btn('apply','确认写入配置',true)
       : '';
@@ -95,7 +106,7 @@ export function hostWizard({modal, api, toast, instanceField, subjectId, instanc
           toast('宿主配置已保存');
         } else {
           area.innerHTML = activity(response);
-          msg.textContent = action === 'probe' ? '试连完成。向导已收到实际工具清单。' : '已刷新此分身的实际状态。';
+          msg.textContent = action === 'probe' ? '试连完成。向导已收到实际工具清单。' : '已刷新所选授权的实际状态。';
         }
       } catch (err) {
         if (box.isConnected) msg.textContent = err.message;

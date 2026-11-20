@@ -12,6 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT),str(ROOT/"apps/local-service"),str(ROOT/"packages/mcp-server")]
 from access import Access, AccessError
 from server import LocalServer
+from reconnect import publish_endpoint
 from host_wizard import HostWizard, NAME, parse_config, safe_file, tomllib
 from local_client import message, send
 from packages.core.store import Store
@@ -29,8 +30,11 @@ class HostWizardTests(unittest.TestCase):
         self.addCleanup(self.server.shutdown)
         self.claude=self.home/"Claude"/"claude_desktop_config.json"
         self.codex=self.home/"codex"/"config.toml"
-        self.wiz=HostWizard(self.store,self.server.base_url,{"claude":self.claude,"codex":self.codex})
+        self.wiz=HostWizard(self.store,self.server.base_url,{"claude":self.claude,"codex":self.codex, "cursor":self.home/".cursor"/"mcp.json"})
         self.server.host_wizard=self.wiz
+        endpoint = publish_endpoint(self.home/"data",self.server)
+        endpoint.__enter__()
+        self.addCleanup(endpoint.__exit__,None,None,None)
         self.sid=self.owner("create_subject",name="Fixture")["subject_id"]
         self.iid=self.owner("create_instance",subject_id=self.sid,name="Window")["instance_id"]
 
@@ -56,12 +60,15 @@ class HostWizardTests(unittest.TestCase):
         result=json.loads(self.claude.read_bytes())
         self.assertEqual(result["theme"],"light")
         self.assertEqual(result["mcpServers"]["other"],json.loads(orig)["mcpServers"]["other"])
-        self.assertTrue(result["mcpServers"][NAME]["env"]["SILICON_AGENT_TOKEN"].startswith("sls_"))
+        holder=Path(result["mcpServers"][NAME]["env"]["SILICON_INSTALLATION_FILE"])
+        self.assertTrue(holder.read_text().strip().startswith("slsi_"))
+        self.assertNotIn(holder.read_text().strip(),self.claude.read_text())
         self.assertEqual({"saved","target","backup"},set(res))
 
     def test_migrate_v100_json_entry_and_preserve_its_options(self):
         self.claude.parent.mkdir()
         old=self.wiz.entry("stdio","old-test-credential")
+        old["env"]={"SILICON_AGENT_TOKEN":"legacy","SILICON_MCP_URL":self.server.base_url+"/mcp"}
         old["disabledTools"]=["request_adjustment"]
         old["env"]["CUSTOM_FLAG"]="retained"
         self.claude.write_text(json.dumps({"mcpServers":{"silicon-life-state":old}}))
@@ -70,6 +77,7 @@ class HostWizardTests(unittest.TestCase):
         self.act(p,"apply")
         servers=json.loads(self.claude.read_bytes())["mcpServers"]
         self.assertNotIn("silicon-life-state",servers)
+        self.assertNotIn("SILICON_AGENT_TOKEN",servers[NAME]["env"])
         self.assertEqual(servers[NAME]["disabledTools"],["request_adjustment"])
         self.assertEqual(servers[NAME]["env"]["CUSTOM_FLAG"],"retained")
 
@@ -89,8 +97,19 @@ class HostWizardTests(unittest.TestCase):
         self.assertEqual(self.codex.read_text().count("# BEGIN Silicon Life State MCP"),1)
         self.assertTrue(self.codex.read_bytes().startswith(orig))
         new=parse_config("codex",self.codex.read_bytes())
-        token=new["mcp_servers"][NAME]["env"]["SILICON_AGENT_TOKEN"]
-        self.assertEqual(self.store.authenticate_agent(token)["instance_id"],second)
+        self.assertEqual(new,result)
+        self.assertEqual(len(self.store.admin("list_installations",{})["installations"]),1)
+        self.assertFalse(self.store.admin("list_agents",{})["grants"])
+
+    def test_cursor_personal_stdio_adapter(self):
+        self.iid=None
+        p=self.preview("cursor")
+        self.assertTrue(p["can_write"])
+        self.act(p,"apply")
+        entry=json.loads(Path(p["target"]).read_text())["mcpServers"][NAME]
+        self.assertEqual(entry["type"],"stdio")
+        self.assertEqual(entry["env"]["SILICON_HOST"],"cursor")
+        self.assertTrue(Path(entry["env"]["SILICON_DATA_DIR"]).is_absolute())
 
     def test_detect_concurrent_edit(self):
         p=self.preview()
@@ -135,9 +154,10 @@ class HostWizardTests(unittest.TestCase):
         self.assertIsNone(state["host_discovery"])
         self.assertIsNone(state["report"])
         entry=parse_config("codex",self.codex.read_bytes())["mcp_servers"][NAME]
-        grant=entry["env"]["SILICON_AGENT_TOKEN"]
+        grant=Path(entry["env"]["SILICON_INSTALLATION_FILE"]).read_text().strip()
         send(message("tools/list",client="Independent-test-client"),grant,url=self.server.base_url+"/mcp")
-        ev=self.store.tool(grant,"report_state",{"idempotency_key":str(uuid.uuid4()),"state_text":"Protocol fixture"})
+        agent=self.store.bind_installation(grant,{"conversation_id":"fixture-thread"})["token"]
+        ev=self.store.tool(agent,"report_state",{"idempotency_key":str(uuid.uuid4()),"state_text":"Protocol fixture"})
         seen=self.act(p,"status")
         self.assertEqual(seen["host_discovery"]["client"],"Independent-test-client")
         self.assertEqual(seen["report"]["event_id"],ev["event_id"])
@@ -146,7 +166,7 @@ class HostWizardTests(unittest.TestCase):
         first=self.owner("issue_agent",instance_id=self.iid)
         p=self.preview("other","http")
         config=json.loads(self.act(p,"copy")["config"])
-        self.assertEqual(config["mcpServers"][NAME]["headers"]["Authorization"],"Bearer "+first["token"])
+        self.assertEqual(config["headers"]["Authorization"],"Bearer "+first["token"])
         self.assertFalse(p["can_write"])
         state=self.act(p,"probe")
         self.assertIn("get_own_state",state["probe"]["tools"])

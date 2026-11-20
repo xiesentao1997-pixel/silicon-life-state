@@ -9,8 +9,9 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import installations
 from . import projections as view
-from .storage import Files, event_hash, verify_db
+from .storage import Files, event_hash, migrate, verify_db
 from .validation import (DomainError, META, READS, REPORT, canonical, digest, fail,
                          now, uid, validate)
 
@@ -75,7 +76,11 @@ def _create_instance(db, sid, name):
 def _credentials(db, token):
     if not isinstance(token,str) or not token.isascii() or len(token)>128:
         fail('UNAUTHENTICATED','Invalid agent credential.',401)
-    row = db.execute('SELECT grant_id,subject_id,instance_id FROM grants WHERE digest=?',(digest(token),)).fetchone()
+    row = db.execute('''SELECT g.grant_id,g.subject_id,g.instance_id FROM grants g
+                        LEFT JOIN conversation_bindings b ON b.instance_id=g.instance_id
+                        LEFT JOIN installations i ON i.installation_id=b.installation_id
+                        WHERE g.digest=? AND (b.instance_id IS NULL OR (b.enabled=1 AND i.digest IS NOT NULL))''',
+                     (digest(token),)).fetchone()
     if row is None:
         fail('UNAUTHENTICATED','Invalid or revoked agent credential.',401)
     return dict(row)
@@ -170,9 +175,10 @@ def _snapshot(db, sid=None):
     for inst in instances:
         inst['state'] = states.get(inst['instance_id'])
     report_states=[ev for ev in reversed(effective.values()) if ev['type']=='report_state']
+    memory = view.memory_view(events)
     return {'subjects':subjects,'instances':instances,'sessions':sessions,'events':events[::-1],
-            'report_states':report_states,
-            'requests':list(view.request_views(events).values())[::-1],'memory':view.memory_view(events),
+            'report_states':report_states, 'subject_summaries':view.subject_summaries(subjects, memory),
+            'requests':list(view.request_views(events).values())[::-1],'memory':memory,
             'stats':{'confirmed_hostile':view.hostile_count(effective)},'generated_at':now()}
 
 
@@ -199,6 +205,34 @@ class Store:
             grant = self._owner(db, 'connection_grant', {'instance_id': instance_id})
             db.commit()
             return instance, grant['grant_id'], self._grant_token(grant['grant_id'])
+
+    def inspect_installation(self, token):
+        with self._guard(), self.files.connect() as db:
+            return installations.public(installations.authenticate(db,token))
+
+    def bind_installation(self, token, body):
+        with self._guard(), self.files.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            bound = installations.bind(self,db,token,body,_create_instance,_instance,_new_session)
+            db.commit()
+            return bound
+
+    def reconcile_host_files(self):
+        directory=self.files.home/'host-grants'
+        if directory.is_dir() and self.files.path.is_file():
+            with self._guard(), self.files.connect() as db:
+                installations.sync_holders(self.files,db)
+
+    def host_grant_file(self, installation_id):
+        """Materialize only for a trusted owner-facing host adapter."""
+        with self._guard(), self.files.connect() as db:
+            db.execute('BEGIN IMMEDIATE')
+            row = installations.lookup(db,installation_id)
+            if not row['digest']:
+                fail('CREDENTIAL_REVOKED','This installation has been revoked.',410)
+            db.execute('UPDATE installations SET managed=1 WHERE installation_id=?',(installation_id,))
+            db.commit()
+            return installations.update_holder(self.files,installations.lookup(db,installation_id))
 
     def authenticate_agent(self, token):
         with self._guard(), self.files.connect() as db:
@@ -231,12 +265,16 @@ class Store:
                 db.execute('BEGIN' if action in READS else 'BEGIN IMMEDIATE')
                 grant = None if owner else _credentials(db,token)
                 actor = OWNER if owner else grant['grant_id']
+                if not owner and grant['instance_id'] and db.execute(
+                        'SELECT 1 FROM conversation_bindings WHERE instance_id=?',(grant['instance_id'],)).fetchone():
+                    actor = grant['instance_id']
                 if action not in READS:
                     key,sign,result = _receipt(db,actor,action,args)
                     if result is not None:
                         db.commit()
                         if action.startswith('delete_'):
                             self.files.finish_erasure(db)
+                            installations.sync_holders(self.files,db)
                         return self._deliver(db,action,result)
                 if owner:
                     result = self._owner(db,action,args)
@@ -249,12 +287,15 @@ class Store:
                 db.commit()
                 if action.startswith('delete_'):
                     self.files.finish_erasure(db)
+                    installations.sync_holders(self.files,db)
                 return self._deliver(db,action,result)
 
     def _grant_token(self,gid):
         return 'sls_'+hmac.new(self.files.key,gid.encode(),hashlib.sha256).hexdigest()
 
     def _deliver(self,db,action,result):
+        if action in {'issue_installation','rotate_installation','restore_installation','revoke_installation'}:
+            return installations.deliver(self.files,db,action,result)
         if action in {'issue_agent','connection_grant'}:
             if not db.execute('SELECT 1 FROM grants WHERE grant_id=?',(result['grant_id'],)).fetchone():
                 fail('CREDENTIAL_REVOKED','This credential has already been revoked.',410)
@@ -281,13 +322,17 @@ class Store:
         if not iid:
             fail('INSTANCE_REQUIRED','Register your instance first.',409)
         instance = _instance(db,iid)
+        if action=='rename_instance':
+            db.execute('UPDATE instances SET name=? WHERE instance_id=?',(args['name'],iid))
+            return _instance(db,iid)
         if action=='start_session':
             return _new_session(db,iid)
         if action=='get_own_state':
             states = view.latest_states(view.reports(_events(db,'instance_id',iid)))
             return {**instance,'state':states.get(iid)}
         if action=='read_subject_memory':
-            return {'subject_id':sid,**view.memory_view(_events(db,'subject_id',sid))}
+            memory = view.memory_view(_events(db,'subject_id',sid))
+            return {'subject_id':sid, **memory, 'summary':view.subject_summary(sid, memory)}
         if action=='read_event_history':
             limit = args.get('limit',100)
             result = list(db.execute('SELECT * FROM events WHERE instance_id=? AND seq<? ORDER BY seq DESC LIMIT ?',
@@ -322,6 +367,9 @@ class Store:
             root = _owned_root(db,instance,args['event_id'])
             if root['type'] not in {'report_state','assess_interaction','express_boundary','request_adjustment'}:
                 fail('INVALID_REFERENCE','Select an original report, assessment, or request.')
+            if root['type'] in {'report_state', 'assess_interaction'}:
+                if root['event_id'] not in view.reports(_events(db, 'instance_id', iid)):
+                    fail('WITHDRAWN','A withdrawn report cannot be shared again.',409)
             links = [root['event_id']]
         elif action=='decide_inheritance':
             root = _readable(db,instance,args['event_id'])
@@ -343,6 +391,14 @@ class Store:
         return result
 
     def _owner(self,db,action,args):
+        if action in {'list_installations','issue_installation','rotate_installation','restore_installation','revoke_installation'}:
+            return installations.owner(self,db,action,args)
+        if action=='rename_subject':
+            db.execute('UPDATE subjects SET name=? WHERE subject_id=?',(args['name'],args['subject_id']))
+            return _subject(db,args['subject_id'])
+        if action=='rename_instance':
+            db.execute('UPDATE instances SET name=? WHERE instance_id=?',(args['name'],args['instance_id']))
+            return _instance(db,args['instance_id'])
         if action in {'snapshot','export'}:
             return _snapshot(db,args.get('subject_id'))
         if action=='verify':
@@ -360,6 +416,10 @@ class Store:
         if action=='issue_agent':
             sid,iid = args.get('subject_id'),args.get('instance_id')
             if iid:
+                binding = db.execute('''SELECT b.enabled,i.digest FROM conversation_bindings b JOIN installations i
+                                        USING(installation_id) WHERE b.instance_id=?''',(iid,)).fetchone()
+                if binding and (not binding['enabled'] or not binding['digest']):
+                    fail('INSTANCE_REVOKED','The owner revoked this instance or its installation.',403)
                 inst = _instance(db,iid)
                 if sid and inst['subject_id']!=sid:
                     fail('SCOPE_CONFLICT','Instance and subject do not match.',409)
@@ -374,10 +434,18 @@ class Store:
         if action=='list_subjects':
             return {'subjects':[dict(r) for r in db.execute('SELECT * FROM subjects ORDER BY rowid')]}
         if action=='list_agents':
-            rows=db.execute('SELECT grant_id,subject_id,instance_id,created_at FROM grants ORDER BY rowid DESC')
-            return {'grants':[dict(r) for r in rows]}
+            rows=db.execute('''SELECT g.grant_id,g.subject_id,g.instance_id,g.created_at,b.installation_id
+                               FROM grants g LEFT JOIN conversation_bindings b ON b.instance_id=g.instance_id ORDER BY g.rowid DESC''')
+            grants=[]
+            for row in rows:
+                grant=dict(row)
+                if grant['installation_id'] is None:
+                    del grant['installation_id']
+                grants.append(grant)
+            return {'grants':grants}
         if action=='revoke_agent':
             gid = args['grant_id']
+            db.execute('UPDATE conversation_bindings SET enabled=0 WHERE instance_id=(SELECT instance_id FROM grants WHERE grant_id=?)',(gid,))
             cur = db.execute('DELETE FROM grants WHERE grant_id=?',(gid,))
             if not cur.rowcount:
                 fail('NOT_FOUND','Credential not found.',404)
@@ -573,6 +641,8 @@ class Store:
         key=digest(args['idempotency_key'])
         sign=digest(canonical(['restore',args]))
         live_grants=set()
+        live_installations={}
+        live_bindings={}
         control_receipts=[]
         # A corrupt live file can still be replaced; uncertain credentials are
         # not carried forward into the recovered installation.
@@ -583,6 +653,9 @@ class Store:
                     return result
                 if verify_db(current)['ok']:
                     live_grants=set(tuple(r) for r in current.execute('SELECT grant_id,digest,subject_id,instance_id FROM grants'))
+                    live_installations={r['installation_id']:dict(r) for r in current.execute('SELECT * FROM installations')}
+                    live_bindings={(r['installation_id'],r['conversation_hash'],r['instance_id']):r['enabled']
+                                   for r in current.execute('SELECT * FROM conversation_bindings')}
                     # A retried old restore must not undo another newer restore.
                     # These results contain only counters and opaque backup IDs.
                     control_receipts=[tuple(r) for r in current.execute(
@@ -591,6 +664,8 @@ class Store:
                 current.execute('PRAGMA wal_checkpoint(TRUNCATE)')
         except (sqlite3.DatabaseError,UnicodeError,ValueError):
             live_grants.clear()
+            live_installations.clear()
+            live_bindings.clear()
             control_receipts.clear()
         tmp=self.files.home/'recovery.tmp'
         tmp.touch(mode=0o600)
@@ -599,14 +674,29 @@ class Store:
                  contextlib.closing(sqlite3.connect(tmp,isolation_level=None)) as dest:
                 source.row_factory=sqlite3.Row
                 source.execute('PRAGMA trusted_schema=OFF')
-                if not verify_db(source)['ok']:
+                if not verify_db(source,allow_legacy=True)['ok']:
                     fail('INVALID_BACKUP','Backup failed integrity verification.',409)
                 source.backup(dest)
                 dest.row_factory=sqlite3.Row
                 dest.execute('PRAGMA trusted_schema=OFF')
                 dest.execute('PRAGMA journal_mode=DELETE')
                 dest.execute('PRAGMA secure_delete=ON')
+                dest.execute('PRAGMA foreign_keys=ON')
+                migrate(dest)
                 dest.execute('BEGIN IMMEDIATE')
+                for row in list(dest.execute('SELECT * FROM installations')):
+                    identity = row['installation_id']
+                    current = live_installations.get(identity)
+                    if current and (current['subject_id'],current['host'])==(row['subject_id'],row['host']):
+                        dest.execute('UPDATE installations SET generation=?,digest=?,managed=? WHERE installation_id=?',
+                                     (current['generation'],current['digest'],current['managed'],identity))
+                        if current['seed_instance_id']!=row['seed_instance_id']:
+                            dest.execute('UPDATE installations SET seed_instance_id=NULL WHERE installation_id=?',(identity,))
+                    else:
+                        dest.execute('UPDATE installations SET generation=?,digest=NULL WHERE installation_id=?',(uid('gen'),identity))
+                for binding in list(dest.execute('SELECT installation_id,conversation_hash,instance_id FROM conversation_bindings')):
+                    dest.execute('UPDATE conversation_bindings SET enabled=? WHERE instance_id=?',
+                                 (live_bindings.get(tuple(binding),0),binding['instance_id']))
                 removed=0
                 for grant in list(dest.execute('SELECT grant_id,digest,subject_id,instance_id FROM grants')):
                     if tuple(grant) not in live_grants:
@@ -623,6 +713,8 @@ class Store:
             for suffix in ('-wal','-shm','-journal'):
                 Path(str(self.files.path)+suffix).unlink(missing_ok=True)
             os.replace(tmp,self.files.path)
+            with self.files.connect() as recovered:
+                installations.sync_holders(self.files,recovered)
             self._sync_dir(self.files.home)
             return result
         finally:

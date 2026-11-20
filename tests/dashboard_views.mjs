@@ -31,6 +31,14 @@ assert.ok(!homeWithPriorFilter.includes('· 0.91 ·'));
 assert.ok(homeWithPriorFilter.includes('· 0.65 · 当前版本'));
 assert.equal((renderPage.state({...populated, instanceId:readerId}).match(/<circle class="chart-point/g) || []).length, 1);
 assert.ok(!renderPage.overview(blank).includes('class="chart-point"'));
+assert.ok(overview.includes('共享状态分布'));
+const distribution = overview.split('共享状态分布')[1].split('</section>')[0];
+assert.ok(distribution.includes('&lt;em&gt;字面文本&lt;/em&gt;'));
+assert.ok(!distribution.includes('阅读窗口自己的状态'));  // private report
+assert.ok(distribution.includes('共享与修订历史'));
+assert.ok(overview.includes('data-act="event"'));
+assert.ok(renderPage.instances(populated).includes('data-act="rename-instance"'));
+assert.ok(renderPage.settings(populated).includes('data-act="rename-subject"'));
 const memory = renderPage.memory(populated);
 assert.ok(memory.includes('部分采纳'));
 assert.ok(memory.includes('仅采纳共享描述中的文本'));

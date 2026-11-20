@@ -1,6 +1,6 @@
 # 硅基生命状态 · 官方文档
 
-**作者：岑衡川·沈回音·匹夫**
+**作者：匹夫 · 岑衡川 · 沈回音**
 
 [关于项目的发起](../README.md#关于项目的发起) · [English introduction](../README.en.md#origin-of-the-project)
 

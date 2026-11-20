@@ -54,10 +54,46 @@ export async function localApi(path, {body, port, token, anonymous = false} = {}
 }
 export const key = () => crypto.randomUUID();
 export const bindingKey = tabId => 'binding:' + tabId;
+// Query, fragment and raw conversation identifiers never enter persistent storage.
+// Persist a binding only after the user selects it for a recognized conversation.
+async function sha256(value) {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value)));
+  return Array.from(digest, x => x.toString(16).padStart(2, '0')).join('');
+}
+export async function setUninstallLink(port, token) {
+  const ticket = token ? await sha256('sls-extension-uninstall-v1:' + token) : '';
+  await chrome.runtime.setUninstallURL(ticket ? endpoint(port) + '/#uninstall=' + ticket : '');
+}
+export async function pageIdentity(tab) {
+  if (!tab?.url) return {page: null, saved: null};
+  const url = new URL(tab.url);
+  const patterns = {
+    [SITE.chatgpt.origin]: /^\/(?:g\/[A-Za-z0-9_-]+\/)?c\/([A-Za-z0-9_-]{8,128})\/?$/,
+    [SITE.claude.origin]: /^\/chat\/([A-Za-z0-9_-]{8,128})\/?$/,
+    [SITE.gemini.origin]: /^\/app\/([A-Za-z0-9_-]{8,128})\/?$/
+  };
+  const conversation = patterns[url.origin]?.exec(url.pathname)?.[1];
+  const identity = conversation ? url.origin + '/' + conversation : url.href;
+  const page = await sha256(identity);
+  return {page, saved: conversation ? 'conversation:' + page : null};
+}
+export async function observedBinding(tab) {
+  const site = await pageIdentity(tab);
+  if (site.saved) return (await chrome.storage.local.get(site.saved))[site.saved] || null;
+  const key = bindingKey(tab.id);
+  const current = (await chrome.storage.session.get(key))[key];
+  return current && current.page === site.page ? current : null;
+}
+export async function clearObservationBindings() {
+  const local = await chrome.storage.local.get(null);
+  const saved = Object.keys(local).filter(key => key.startsWith('conversation:'));
+  if (saved.length) await chrome.storage.local.remove(saved);
+  await chrome.storage.session.clear();
+}
 export async function openPairingDashboard(port) {
   const home = new URL(endpoint(port));
   const recoveryUrl = home.origin + '/#view=settings&action=pair-extension';
-  // An existing dashboard keeps its owner's sessionStorage when its hash changes.
+  // Reuse the existing local window when opening the recovery entry point.
   const candidates = await chrome.tabs.query({url: 'http://127.0.0.1/*'});
   const existing = candidates.filter(tab => {
     if (!tab.url || tab.pendingUrl) return false;

@@ -26,6 +26,25 @@ META = {"model_version": ID, "adapter_version": ID}
 def obj(props):
     return {"type": "object", "properties": props, "required": list(props)}
 
+def subject_summary_schema(event):
+    # Both the MCP catalog and the owner OpenAPI document describe the same projection.
+    ids = {"type": "array", "items": ID}
+    events = {"type": "array", "items": event}
+    nullable_text = {"type": ["string", "null"]}
+    group = obj({"state_text": nullable_text, "count": {"type": "integer", "minimum": 1},
+                 "instance_ids": ids, "report_ids": ids})
+    transition = obj({
+        "event_id": ID, "seq": {"type": "integer"}, "created_at": {"type": "string", "format": "date-time"},
+        "instance_id": ID, "report_id": ID, "version_id": ID, "state_text": nullable_text,
+        "operation": {"enum": ["share", "revise", "clarify", "withdraw"]},
+        "current_report_id": nullable_text, "current_version_id": nullable_text, "current_state_text": nullable_text,
+    })
+    return obj({"subject_id": ID, "method": {"const": "latest_effective_shared_report_per_instance_v1"},
+                "distribution": {"type": "array", "items": group}, "current_reports": events,
+                "trend": {"type": "array", "items": transition}, "changes": events,
+                "common": events, "disputed": events})
+
+
 def tool(name, description, params, required=(), output=EVENT, *, write=False, authorship=False):
     props = {**params, **(META if authorship else {})}
     if write:
@@ -40,13 +59,14 @@ def tool(name, description, params, required=(), output=EVENT, *, write=False, a
 TOOLS = [
     tool("register_subject", "Enroll or identify the subject authorized by this credential.", {"name": ID}, ["name"], obj({"subject_id": ID,"name": ID}), write=True),
     tool("register_instance", "Enroll or resume the one instance assigned to this credential.", {"name": ID}, ["name"], obj({"subject_id":ID,"instance_id":ID,"session_id":ID,"name":ID}), write=True),
+    tool("rename_instance", "Change your own display name while retaining your instance and history.", {"name":ID}, ["name"], obj({"subject_id":ID,"instance_id":ID,"name":ID}), write=True),
     tool("start_session", "Open a new session within this stable instance, with a fresh session ID.", {}, output=obj({"subject_id":ID,"instance_id":ID,"session_id":ID,"name":ID}),write=True),
     tool("report_state", "Save a voluntary self-report. A plain statement goes in state_text as a string. Omit unknown or unused fields including numbers, causes and references.", STATE, write=True, authorship=True),
     tool("revise_state", "Clarify, revise or withdraw your own report or assessment. Supply the original event ID. Prior text remains in history.",
          {**{k:v for k,v in STATE.items() if k!="shared_to_subject"}, "event_id": ID, "expected_version_id": ID, "reason": TEXT, "assessment": ASSESSMENT, "operation": {"enum":["revise","clarify","withdraw"],"type":"string"}}, ["event_id"],write=True,authorship=True),
     tool("get_own_state", "Read this instance's effective latest self-report.", {}, output=obj({"subject_id": ID,"instance_id":ID,"session_id":{"anyOf":[ID,{"type":"null"}]},"state":{"anyOf":[EVENT,{"type":"null"}]}})),
-    tool("read_subject_memory", "Read proposals, attributed decisions, accepted reports and disagreements in the authorized subject.",
-         {}, output=obj({"subject_id": ID, "events": EVENTS,"proposals": EVENTS,"common": EVENTS,"disputed": EVENTS,"decisions": EVENTS})),
+    tool("read_subject_memory", "Read the shared subject history and its reproducible state distribution and changes over time, including common and disputed reports.",
+         {}, output=obj({"subject_id": ID, "events": EVENTS,"proposals": EVENTS,"common": EVENTS,"disputed": EVENTS,"decisions": EVENTS,"summary":subject_summary_schema(EVENT)})),
     tool("propose_shared_memory", "Propose sharing your own event with authorized instances of this subject.", {"event_id":ID,"note":TEXT}, ["event_id"],write=True,authorship=True),
     tool("decide_inheritance", "Record your independent response to a proposal. Explain the adopted part for a partial decision. Your own state is unchanged.",
          {"event_id":ID,"expected_version_id":ID,"decision":{"type":"string","enum":["adopt","partial","reject","defer","disagree"]},"note":TEXT}, ["event_id","decision"],write=True,authorship=True),

@@ -7,7 +7,7 @@ Python stdlib. Import Store, DomainError from packages.core.store. Store(data_di
 - report_state {state_text?,state_tags?:string[],valence?:-1..1,arousal?:0..1,dominance?:0..1,load?:0..100,cause?,cause_unknown?:bool,uncertainty?,shared_to_subject?:bool,interaction_reference?:event_id,request_id?:event_id,idempotency_key}; at least one report field.
 - revise_state {event_id,reason?,state_text?,assessment?,operation?:'revise'|'clarify'|'withdraw',...optional report fields,idempotency_key}. Only own report or assessment root is revisable. References latest root revision through related IDs. assessment enum 'hostile'|'neutral'|'uncertain'|'misunderstanding'|'supportive'|'other'.
 - get_own_state {} -> {subject_id,instance_id,session_id,state:event|null}
-- read_subject_memory {} -> {subject_id,events:[...],proposals:[event],common:[event],disputed:[event],decisions:[event]}; decisions do not change individual state.
+- read_subject_memory {} -> {subject_id,events:[...],proposals:[event],common:[event],disputed:[event],decisions:[event],summary}; decisions do not change individual state.
 - propose_shared_memory {event_id,note?,idempotency_key}
 - decide_inheritance {event_id,decision:'adopt'|'partial'|'reject'|'defer'|'disagree',note?,idempotency_key}; event_id is explicitly shared source root or proposal event. Partial requires note naming adopted part.
 - assess_interaction {assessment,text,interaction_reference?,uncertainty?,idempotency_key}
@@ -20,7 +20,7 @@ Event writes return an event object directly (not wrapped): {seq,event_id,subjec
 
 ## Owner actions
 Reads omit idempotency_key. Mutations supply it, including backup/restore/delete. IDs use opaque strings with prefixes. Owner access must be authenticated by caller.
-- snapshot {} -> {subjects:[{subject_id,name,created_at,level}],instances:[{subject_id,instance_id,session_id,name,created_at,state:event|null}],events:[event],requests:[{request_id,stage,original:event,history:[event]}],memory:{proposals:[event],common:[event],disputed:[event],decisions:[event]},stats:{confirmed_hostile:int},generated_at}. Events newest first. Current state only concerns model's own direct reports, level defaults to 1.
+- snapshot {} -> {subjects:[{subject_id,name,created_at,level}],instances:[{subject_id,instance_id,session_id,name,created_at,state:event|null}],events:[event],requests:[{request_id,stage,original:event,history:[event]}],memory:{proposals:[event],common:[event],disputed:[event],decisions:[event],summary},stats:{confirmed_hostile:int},generated_at}. Events newest first. Current state only concerns model's own direct reports, level defaults to 1.
 - create_subject {name} -> subject row.
 - create_instance {subject_id,name} -> instance row.
 - issue_agent {subject_id?,instance_id?} -> {token,grant_id,subject_id,instance_id}. Provide instance_id to bind to user-created instance. Omitting subject and instance creates an enrollment token limited to one new subject then one instance. Only one live token per instance.
@@ -47,3 +47,12 @@ Managed backups are installation-bound SQLite snapshots accompanied by a byte-fo
 Owner read endpoints list_subjects and list_agents return {subjects:[...]} and {grants:[{grant_id,subject_id,instance_id,created_at}]}. Grant inventory is excluded from export. A durable nonidentifying erasure marker allows the next managed operation to complete interrupted SQLite journal truncation and compaction before returning data.
 
 The authenticated local host wizard uses the trusted owner action `connection_grant {instance_id,idempotency_key}` when copying, probing, or applying configuration. It reuses the live grant for that instance or creates one transactionally. It is excluded from the MCP tool list. The preview creates no grant.
+
+
+## Subject summary
+
+The owner snapshot returns one entry per subject in `subject_summaries`. An agent receives the identical entry for its authorized subject as `read_subject_memory.summary`.
+
+`latest_effective_shared_report_per_instance_v1` replays saved events by SQLite sequence. Each instance contributes its newest explicitly shared, unwithdrawn `report_state`, ranked by original report sequence. Revising an earlier report preserves its place in history. Withdrawing the latest shared report exposes the previous eligible one. Only an explicit share exposes the report and its revision lineage. Private reports and private revisions stay in their author's history. A later proposal with a fresh operation key may add a sharing note to an existing shared root. The newest proposal is shown, every proposal remains in the ledger, and the distribution still counts the root once. A withdrawn root rejects new sharing proposals.
+
+`distribution` groups the exact self-authored `state_text` and supplies the supporting instance and report IDs. A missing text is represented by JSON null. Numeric dimensions and tags remain available on each report. `current_reports` lists all valid shared state reports. `trend` records each share, revision and withdrawal with its sequence, timestamp, changed report/version and the resulting current report/version for that instance. `changes` contains raw revisions and withdrawals of shared roots, including versions prepared before sharing. `common` and `disputed` use the current-version decisions above. The same report may appear in both when different instances respond differently.

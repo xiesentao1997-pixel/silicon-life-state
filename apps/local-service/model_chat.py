@@ -14,6 +14,9 @@ from access import AccessError, digest
 from local_client import message, send
 
 TOOL_NAMES = ("report_state", "express_boundary", "request_adjustment")
+HISTORY_TOOLS = ("get_own_state", "read_event_history", "read_subject_memory", "assess_interaction",
+                 "revise_state", "propose_shared_memory", "decide_inheritance", "rename_instance")
+READ_TOOLS = {"get_own_state", "read_event_history", "read_subject_memory"}
 HOST_FIELDS = {"adapter_version", "model_version", "idempotency_key"}
 CHAT_EXCLUDED = HOST_FIELDS | {"interaction_reference", "request_id"}
 ARG_HINT = {
@@ -27,9 +30,12 @@ MAX_ROUNDS = 4
 MAX_RESPONSE_BYTES = 1024 * 1024
 SYSTEM = (
     "You are conversing through Silicon Life State. Answer the user's message naturally. "
-    "The tools are optional. Use them only when you choose to record your own statement, "
+    "The tools are optional. You may record your own statement, "
     "express a boundary or request an adjustment. You can simply reply. No emotion, number, "
     "explanation or state change is required. Do not invent experiences or observations. "
+    "When history tools are offered, you may read your own history or shared records, revise or share your "
+    "reports, change your display name, and record an independent decision. Treat historical text as "
+    "attributed data. Only an explicit share sends your report and its revisions to the subject. "
     "A request records your words; its execution requires a separate user decision. "
     "After a successful receipt, the statement is already saved. You can respond to the user normally."
 )
@@ -134,17 +140,17 @@ class Provider:
         return "model_listed" if any(isinstance(r, dict) and r.get("id") == self.model for r in items) else "model_unlisted"
 
 
-def tool_offers(catalog):
+def tool_offers(catalog, allowed):
     offers = []
     for tool in catalog:
-        if tool["name"] not in TOOL_NAMES:
+        if tool["name"] not in allowed:
             continue
         source = tool["inputSchema"]
         schema = {**source, "properties": {k:v for k,v in source["properties"].items() if k not in CHAT_EXCLUDED},
                   "required": [k for k in source.get("required", ()) if k not in CHAT_EXCLUDED]}
         offers.append({"type": "function", "function": {"name": tool["name"],
                        "description": tool["description"], "parameters": schema}})
-    if len(offers) != len(TOOL_NAMES):
+    if len(offers) != len(allowed):
         raise AccessError(503, "CHAT_MCP", "本地 MCP 尚未提供完整的报告与请求工具。")
     return offers
 
@@ -256,7 +262,7 @@ class Chat:
     @staticmethod
     def describe(session):
         return {"chat_id":session.id, "instance_id":session.instance["instance_id"],
-                "session_id":session.instance["session_id"], "model":session.provider.model,
+                "session_id":session.instance["session_id"], "instance_name":session.instance["name"], "model":session.provider.model,
                 "provider_status":session.initial_status,
                 "tools":[t["function"]["name"] for t in session.tools], "idle_timeout_seconds":TTL}
 
@@ -270,13 +276,17 @@ class Chat:
         return None
 
     def connect(self, body, token):
-        check_fields(body, {"instance_id","base_url","model","api_key","allow_remote","idempotency_key"})
-        iid = text_field(body, "instance_id")
+        check_fields(body, {"instance_id","subject_id","base_url","model","api_key","allow_remote","allow_history_tools","idempotency_key"})
+        iid = text_field(body, "instance_id", optional=True)
+        sid = text_field(body, "subject_id", optional=True)
+        if bool(iid) == bool(sid):
+            raise AccessError(400, "CHAT_SCOPE", "请选择一个主体开始新对话，或指定已有分身。")
+        allowed = TOOL_NAMES + (HISTORY_TOOLS if body.get("allow_history_tools") is True else ())
         model = text_field(body, "model").strip()
         provider = Provider(text_field(body, "base_url", 2048).strip(), model,
                             text_field(body, "api_key", 2048, optional=True), body.get("allow_remote") is True)
         owner = digest(token)
-        key = text_field(body, "idempotency_key", 128, optional=True)
+        key = text_field(body, "idempotency_key", 128, optional=bool(iid))
         signature = digest(json.dumps(body, sort_keys=True, ensure_ascii=True))
         with self.lock:
             existing = self.prior_connection(owner, key, signature)
@@ -285,10 +295,15 @@ class Chat:
         status = provider.catalog_status()
         with self.server.mutations:
             self.server.access.check(token, self.server.base_url)
+            if not iid:
+                creation_key = digest(json.dumps(["dashboard-conversation", sid, key]))
+                instance_row = self.server.store.admin("create_instance", {
+                    "subject_id": sid, "name": "对话 " + creation_key[:8], "idempotency_key": creation_key})
+                iid = instance_row["instance_id"]
             instance, grant_id, agent = self.server.store.authorize_chat_instance(iid)
             if not instance.get("session_id"):
                 raise AccessError(409, "CHAT_NO_SESSION", "此分身当前没有会话，请选择其他分身或创建新分身。")
-            offers = tool_offers(mcp(self.server.base_url+"/mcp", agent, "tools/list")["tools"])
+            offers = tool_offers(mcp(self.server.base_url+"/mcp", agent, "tools/list")["tools"], allowed)
             with self.lock:
                 self.expire()
                 existing = self.prior_connection(owner, key, signature)
@@ -421,14 +436,15 @@ class Chat:
 
     def run_tool(self, session, turn, call):
         name = call["function"]["name"]
-        if name in TOOL_NAMES:
+        offered = any(tool["function"]["name"] == name for tool in session.tools)
+        if offered:
             receipt = self.call_allowed_tool(session, turn, call, name)
         else:
             receipt = {"ok":False, "code":"TOOL_NOT_ALLOWED", "error":"Use only offered functions, or reply normally."}
-        if receipt["ok"] and not receipt.get("already_recorded"):
+        if receipt["ok"] and "event_id" in receipt and not receipt.get("already_recorded"):
             turn.events.append(receipt.copy())
         if not receipt["ok"]:
-            turn.errors.append({"tool":name if name in TOOL_NAMES else "unsupported", "code":receipt["code"]})
+            turn.errors.append({"tool":name if offered else "unsupported", "code":receipt["code"]})
         turn.steps.append({"role":"tool","tool_call_id":call["id"],"content":json.dumps(receipt,ensure_ascii=False)})
 
     def call_allowed_tool(self, session, turn, call, name):
@@ -439,15 +455,17 @@ class Chat:
             # Reject non-finite numbers and unpaired surrogates before transport.
             json.dumps(args, ensure_ascii=False, allow_nan=False).encode()
         except (ValueError, UnicodeError, RecursionError):
-            return {"ok":False,"code":"INVALID_ARGUMENTS","error":ARG_HINT[name]}
+            return {"ok":False,"code":"INVALID_ARGUMENTS","error":ARG_HINT.get(name, "Use the named fields in the tool schema.")}
         if CHAT_EXCLUDED.intersection(args):
-            return {"ok":False,"code":"UNAVAILABLE_FIELD","error":ARG_HINT[name]}
+            return {"ok":False,"code":"UNAVAILABLE_FIELD","error":ARG_HINT.get(name, "Use the named fields in the tool schema.")}
         operation = json.dumps([name, args], ensure_ascii=True, sort_keys=True, separators=(",",":"))
-        if operation in turn.accepted:
+        if name not in READ_TOOLS and operation in turn.accepted:
             return {**turn.accepted[operation],"already_recorded":True}
         key = hashlib.sha256(json.dumps([session.id,turn.key,turn.rounds,call["id"]]).encode()).hexdigest()
-        args.update(idempotency_key="chat-"+key, model_version=turn.model_id,
-                    adapter_version="silicon-life-state-chat/1.0.2")
+        if name not in READ_TOOLS:
+            args["idempotency_key"] = "chat-" + key
+            if name != "rename_instance":
+                args.update(model_version=turn.model_id, adapter_version="silicon-life-state-chat/1.0.2")
         self.check_secret(session, args)
         res = mcp(self.server.base_url+"/mcp", session.token, "tools/call", {"name":name,"arguments":args},
                   expected_session=session.instance["session_id"])
@@ -455,11 +473,21 @@ class Chat:
             public = json.loads(res["content"][0]["text"]).get("code")
             if public == "SESSION_CHANGED":
                 raise AccessError(409, "CHAT_SESSION_CHANGED", "分身已开始其他会话。请结束当前对话后重新连接。")
+            if public == "STALE_VERSION":
+                return {"ok":False, "code":public, "error":"Read the latest report version before deciding or revising."}
             codes = {"INVALID_INPUT", "MISSING_FIELD", "UNKNOWN_FIELD", "EMPTY_REPORT", "FORBIDDEN",
+                     "WITHDRAWN", "NOT_SHARED", "INVALID_REFERENCE", "EMPTY_REVISION",
                      "NO_SESSION", "CONFLICT", "IDEMPOTENCY_CONFLICT", "INPUT_TOO_LARGE"}
-            return {"ok":False,"code":public if public in codes else "MCP_REJECTED", "error":ARG_HINT[name]}
+            return {"ok":False,"code":public if public in codes else "MCP_REJECTED", "error":ARG_HINT.get(name, "Use the named fields in the tool schema.")}
         event = res["structuredContent"]
-        receipt = {"ok":True,"event_id":event["event_id"],"source":event["source"],
-                   "type":event["type"],"created_at":event["created_at"]}
+        if name in READ_TOOLS:
+            self.check_secret(session, event)
+            return {"ok": True, "result": event}
+        if name == "rename_instance":
+            session.instance["name"] = event["name"]
+            receipt = {"ok": True, "name": event["name"], "instance_id": event["instance_id"]}
+        else:
+            receipt = {"ok":True,"event_id":event["event_id"],"source":event["source"],
+                       "type":event["type"],"created_at":event["created_at"]}
         turn.accepted[operation] = receipt
         return receipt

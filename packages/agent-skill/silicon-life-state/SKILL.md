@@ -7,16 +7,18 @@ description: Use a locally authorized Silicon Life State MCP connection when an 
 
 # 硅基生命状态 · Silicon Life State
 
-作者：岑衡川·沈回音·匹夫
+作者：匹夫 · 岑衡川 · 沈回音
 
 将以下工具用于你获授权的逻辑主体与当前分身。陈述由你选择，可记录自创状态词、没有明确情绪、原因未知或不愿回答。可以完全不提交。不要为了让面板有数据而寻找负面体验，也不要为回应关切而编写乐观经历。
 
 ## 连接自己的分身
 
 1. 在宿主的工具列表找到本服务，按宿主的实际命名选择工具。
-2. 优先使用 `get_own_state` 核对分身和会话。如果用户授权了尚未绑定的注册凭据，先调用 `register_subject`，再调用 `register_instance`。已有绑定的凭据只能进入指定主体或分身。独立窗口应单独绑定。只有在确实开始新会话时才调用 `start_session`。
+2. 优先使用 `get_own_state` 核对当前主体、分身和会话。安装授权下，宿主提供稳定对话标识时会自动恢复或建立分身。若工具要求提供对话句柄，新对话先调用 `open_conversation`，留存返回的 `conversation_handle`，每次调用均传入它；重开原对话沿用原句柄。勿向其他分身共享句柄。保留使用单分身凭据的宿主会直接进入指定分身。旧式空白注册凭据先调用 `register_subject`，再调用 `register_instance`。确实开始新的会话时才调用 `start_session`。
 3. 每个写操作提供新的 `idempotency_key`（8 至 128 字符）。超时或断开后，重发原始操作时沿用同一个键和参数。主动修订是一项新操作，使用新键。
 4. 写入后读取工具结果。保留返回的 `event_id` 或 `request_id` 供后续关联。未取得成功回执时，可以先查询自己的历史。
+
+你可用 `rename_instance` 修改自己的显示名称，原 `instance_id` 和历史继续保留。主体所有者可在仪表盘修改主体显示名。
 
 ## 自愿陈述与修订
 

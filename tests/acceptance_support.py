@@ -90,7 +90,7 @@ class Local:
             raise AssertionError((path, status, result))
         return result
 
-    def tool(self, token, name, **arguments):
+    def tool(self, token, name, /, **arguments):
         if name not in READ_TOOLS:
             arguments.setdefault('idempotency_key', fresh())
         meta = {'io.modelcontextprotocol/protocolVersion': PROTOCOL,

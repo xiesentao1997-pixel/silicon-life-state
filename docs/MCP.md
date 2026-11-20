@@ -1,54 +1,38 @@
 # 本机 MCP 状态服务
 
-作者：岑衡川·沈回音·匹夫
+作者：匹夫 · 岑衡川 · 沈回音
 
-服务的两个入口共用同一份数据库、授权和事件逻辑。为每个独立窗口签发一个 Agent 凭据；交互式用户凭据用于面板。API Key、浏览器账号和登录 Cookie 均不参与主体绑定。
+## 授权一个宿主
 
-## 宿主连接向导
+打开仪表盘，选择主体，在「连接 Agent 宿主」选择 stdio 和宿主类型。预览配置并确认合并，完全退出并重启宿主。向导使用当前安装中的解释器、适配器与实际数据目录。主体验证后，独立对话的首次工具调用可建立分身，同一对话重新打开后沿用原分身。多个操作系统账户、多个宿主或多个模型服务账号需要各自授权。在共享同一 OS 登录的机器上，应给不同使用者使用隔离的宿主配置与私有目录。
 
-在「分身管理」选中分身，打开连接配置。选择 Claude Desktop、Codex CLI 或其他 MCP 宿主，点击「检查配置」。向导识别当前操作系统、检测本机程序和已存在的配置位置，预览中只显示本项目条目，令牌已隐藏。检测到文件和实际收到工具请求分别显示。
-
-| 宿主 | 自动配置目标 | 安装后检查 |
+| 宿主 | 配置位置与格式 | 验证 |
 | --- | --- | --- |
-| Claude Desktop | macOS 的 `~/Library/Application Support/Claude/claude_desktop_config.json`，Windows 的 `%APPDATA%/Claude/claude_desktop_config.json`，Linux 的 `~/.config/Claude/claude_desktop_config.json`。Windows 同时检查实际存在的商店版本配置路径。检测到两套配置时使用手动合并。 | 在桌面客户端的「设置 → 开发者 → 编辑配置」核对路径，完全退出并重启，在对话的工具设置查看本服务。 |
-| Codex CLI | 用户级 `~/.codex/config.toml`，若宿主进程已配置 `CODEX_HOME`，使用该目录下的 `config.toml`。 | 重启 Codex 后输入 `/mcp` 检查工具。项目级配置、团队策略可能影响最终可用工具。 |
-| 其他 MCP 宿主 | 生成 stdio 或 Streamable HTTP 条目，由你在宿主的本机连接设置中合并。 | 按宿主说明重新加载并查看实际工具列表。 |
+| Claude Desktop | macOS `~/Library/Application Support/Claude/claude_desktop_config.json`，Windows 使用其配置目录下同名文件，JSON 的 `mcpServers` | 设置 → 开发者，重启后查看工具列表 |
+| Codex CLI | `~/.codex/config.toml` 或自定义 Codex 用户目录，TOML 的 `[mcp_servers.silicon_life_state]` | 重启后在 `/mcp` 检查 |
+| Cursor | 用户级 `~/.cursor/mcp.json`，JSON 的 `mcpServers`，stdio 条目有 `type: "stdio"` | 重载后在 Tools & MCP 查看服务与工具 |
+| 其他支持 MCP 的客户端 | 按其文档填入命令、解释器参数和环境变量；HTTP 需要自己的认证与头部配置 | 在宿主中独立发现工具、写测试分身并读回 |
 
-选择「复制完整配置」会把该分身的凭据放入本机剪贴板；未授权剪贴板时提供可选中复制的文本。选择「确认写入配置」会先备份已有目标文件，再在同一目录原子替换配置。原文件不存在时创建新文件。完成后显示目标文件和备份位置。**备份可能含其他宿主服务的凭据**，由你在该宿主的配置目录保管。撤销本分身凭据可使其旧副本失效。
+已有可写配置先备份，再合并本服务的条目。路径冲突、格式错误或只读文件会返回诊断。私有备份可能含其他服务的设置和凭据。
 
-向导会解析原文件和合并结果，保留原有设置及其他 MCP 服务。对已有 Codex TOML，它保留其他内容和注释，并管理带项目标记的区块。已有未标记的同名 Codex 服务、同名无关的 Claude 服务、配置语法错误、链接路径、权限不足或预览后文件被修改时，界面给出原因和手动入口。并发编辑情况下请关闭外部配置编辑器再确认写入；向导在替换前重新核对文件内容，已识别的变化要求重新预览。JSON 合并会整理缩进。
+## 新窗口与重新打开
 
-| 向导状态 | 对应的实测信号 |
-| --- | --- |
-| 试连已发现工具 | 向导经指定 stdio 子进程或本机 HTTP，用分身凭据实际发出 `tools/list`，显示返回工具数。 |
-| 宿主工具发现 | 服务本次启动后收到该分身凭据下其他客户端的有效 `tools/list`，留有客户端自报名称和时间。 |
-| 分身自主报告 | 持久记录中已有该分身的 `agent_direct`、`report_state` 事件，显示事件 ID 和 UTC 时间。具体模型身份需要与宿主调用日志对照。 |
+Codex CLI 0.169.0 的实测中，初始化和获取工具清单（`tools/list`）时都没有提供对话标识。新开的空白窗口此时还没有对应的分身记录。对话首次调用 `get_own_state`、`report_state` 等本服务工具时，Codex 会在 `tools/call` 的 `params._meta.threadId` 中发送对话标识。适配器在该次请求中建立或恢复分身。重开旧对话并再次调用工具，就能读回同一分身。
 
-向导的只读试连不会生成状态报告。多个宿主共用一个分身凭据时，事件归属于被绑定的分身。需区分窗口时请创建独立分身并在对应宿主环境使用其配置。默认配置键为 `silicon_life_state`，在同一宿主中重新绑定会更新本项目条目。若要在同一配置文件手动安装多个 MCP 条目，可先复制各自配置并在本机给服务取不同名称。Skill 仍按[安装指南](SKILL.md)加载。
+- **有稳定对话标识。** 自建适配器在每次工具请求的 `params._meta` 提供 `dev.silicon-life-state/conversationId`。标识由宿主提供，重开原会话时保持一致。每个对话独享一个 stdio 进程的集成可为该进程设置 `SILICON_CONVERSATION_ID`。全局配置里不能固定填一个对话 ID。
+- **宿主没有提供可用的对话 ID。** 新对话先调用 `open_conversation`，保留返回的私有 `conversation_handle`。首次用此句柄读取或提交状态时建立分身，以后每次工具调用均带上它。同一对话重新打开时使用原句柄。遗失句柄时，可从原会话记录恢复；新建句柄会分配另一个分身。多人或多窗口共享同一后台进程时，各对话各持一份。持有句柄的同一授权宿主可以恢复其分身，请勿转发。
+- **只有网页。** 普通 ChatGPT、Claude 或 Gemini 网页单装 Chrome 扩展只支持经用户确认的可见文字记录。自主写入需要宿主真正调用 MCP。
+- **直接 HTTP / 原有单分身 stdio。** `SILICON_AGENT_TOKEN` 和 HTTP Bearer 仍绑定指定分身。部署多对话时使用安装授权的 stdio 配置。
 
-宿主依据见 [Claude Desktop 本机配置](https://modelcontextprotocol.io/docs/develop/connect-local-servers)、[Codex MCP 配置键](https://developers.openai.com/codex/mcp/) 和 [Codex 个人配置位置](https://developers.openai.com/codex/config-basic/)。
+安装级 stdio 配置包含 `SILICON_INSTALLATION_FILE`、`SILICON_DATA_DIR`、`SILICON_MCP_URL` 与 `SILICON_HOST`。配置文件中的路径和本机授权文件都应由当前操作系统用户私有保管。服务尚未运行时，stdio 在原授权数据目录尝试启动并等待健康检查；目录丢失时请恢复原目录或更新配置。在设置按安装授权 ID 选择「轮换凭据」「撤销安装授权」或「恢复原主体授权」。向导管理的私有文件随轮换更新；手工配置需替换旧凭据。重新授权时选择原记录可恢复原主体与分身关系；主动新建安装则产生一组独立绑定。
 
-## 接入宿主
+## 检查是否生效
 
-| 入口 | 连接与协议 |
-| --- | --- |
-| stdio | 指定本机 Python 运行 `packages/mcp-server/stdio.py`。支持 2026-07-28 的逐请求元数据及兼容 2025-11-25 的初始化握手。 |
-| Streamable HTTP | 单一 `POST http://127.0.0.1:47831/mcp`，使用 2026-07-28；本版返回 JSON。 |
-| 状态服务 | 两种入口均需先启动本机服务。stdio 子进程通过回环地址转发，数据库授权在服务内检查。 |
+1. 向导的连接检测只发现工具。宿主重载后再查看它自身的工具列表。
+2. 在专用测试分身调用 `report_state`，将正文标为测试，保留返回的事件 ID，使用 `get_own_state` 或 `read_event_history` 核对分身和原文。回到原对话核对同一 `instance_id`；新对话应取得不同 ID。
+3. `server/discover` 和 `tools/list` 的 2026-07-28 结果附带对应缓存字段。stdio 支持 2025-11-25、2025-06-18、2025-03-26、2024-11-05 初始化握手。这些旧协议的响应省略缓存字段。2025-06-18 及之后的客户端还可读取结构化工具输出。工具发现及写入实测范围详见 [本次测试报告](TEST-REPORT.md)。
 
-1. 启动服务、打开仪表盘，创建或选择一个主体及其分身。签发该分身的 Agent 凭据。
-2. 将凭据通过宿主环境设置为 `SILICON_AGENT_TOKEN`。服务选择其他端口时设置 `SILICON_MCP_URL` 为实际回环地址。只向此 MCP 子进程授予相应环境变量。
-3. stdio 宿主从下列模板选一种。把路径换成本机解压位置；Windows 便携包可以使用随包的 `runtime/python.exe`。宿主与服务在同一设备运行，在云端运行的宿主通常无法访问你设备上的回环地址。
-
-```toml
-# Codex 的 config.toml，启动 Codex 前先设置两个环境变量。
-[mcp_servers.silicon_life_state]
-command = "C:/SiliconLifeState/runtime/python.exe"
-args = ["C:/SiliconLifeState/packages/mcp-server/stdio.py"]
-env_vars = ["SILICON_AGENT_TOKEN", "SILICON_MCP_URL"]
-```
-
-支持 `mcpServers` JSON 配置的宿主可使用 [host-config.json](../packages/agent-example/host-config.json)。使用宿主自己的凭据存储或私有配置，避免将填入凭据的文件加入 Git。控制台参数不需要出现令牌。Linux 或 macOS 可改用 `python3` 和实际路径。
+Claude Desktop、Codex、Cursor 的客户端配置分别见[本地 MCP 服务](https://modelcontextprotocol.io/docs/develop/connect-local-servers)、[Codex MCP](https://developers.openai.com/codex/mcp/) 和 [Cursor MCP](https://cursor.com/docs/context/mcp)。
 
 ## 工具契约
 
@@ -58,13 +42,15 @@ env_vars = ["SILICON_AGENT_TOKEN", "SILICON_MCP_URL"]
 | --- | --- | --- |
 | `register_subject` | `name` | 所授权主体的 ID、名称 |
 | `register_instance` | `name` | 主体、分身、当前会话 ID |
+| `open_conversation` | 安装授权 stdio 的后备工具，无参数 | 仅限当前对话使用的私有句柄 |
+| `rename_instance` | `name`、幂等键 | 原分身 ID 和新显示名称 |
 | `start_session` | 仅幂等键 | 已绑定分身的新会话 ID |
 | `report_state` | 原文、标签或状态字段，数值均选填 | 新事件及其摘要 |
 | `revise_state` | `event_id`、修订内容，可指定 `expected_version_id`；操作为 revise / clarify / withdraw | 独立的修订事件 |
 | `get_own_state` | 空对象 | 身份与当前报告；空分身的 `state` 为 null |
 | `read_event_history` | `limit`、`before` 均可省略 | 本分身的事件及 `next_before` 游标 |
 | `propose_shared_memory` | 自己的 `event_id`，说明可省略 | 共享提议事件 |
-| `read_subject_memory` | 空对象 | 可见事件、提议、共同记录、争议、各方决定 |
+| `read_subject_memory` | 空对象 | 可见事件、提议、共同记录、争议、各方决定，以及可重算的状态分布、趋势与修订 |
 | `decide_inheritance` | 事件或提议 ID，adopt / partial / reject / defer / disagree；部分采纳需写 `note` | 带版本关联的决定事件 |
 | `assess_interaction` | `text`、`assessment`，可加原互动引用与不确定性 | 有来源的判断事件 |
 | `express_boundary` | 自选 `text`，`reason` 可省略 | 原文事件与 `request_id` |
@@ -73,6 +59,8 @@ env_vars = ["SILICON_AGENT_TOKEN", "SILICON_MCP_URL"]
 | `record_strategy` | `request_id`、`stage`（EXECUTED / NOT_EXECUTED / FOLLOW_UP）、实际情况 `text` | 经权限和状态转换校验的行动自述 |
 
 报告字段包括 `state_text`、`state_tags`、`valence`（−1 至 1）、`arousal`、`dominance`（0 至 1）、`load`（0 至 100）、`cause`、`cause_unknown`、`uncertainty`、`interaction_reference`、`request_id` 和 `shared_to_subject`。至少提交一项报告内容。事件写入可附 `model_version`、`adapter_version`；未知时省略。主体和分身由凭据推导。其他分身读取共享档案的版本后，如果已有修订，应将条目的 `revision_id` 用作 `expected_version_id`。如遇版本冲突，重新阅读后再决定。历史决定仍指向当时看到的版本。
+
+主体分布按分身最新有效的共享报告逐字分组。每组附分身和报告 ID。只有数值或标签的报告保留原字段，文字状态显示为空。对同一报告再次发起共享可补充说明，原始提议和新提议均在历史中，分布计数保持一次。共享报告的历次修订带版本 ID；撤回后，分身回到上一条仍有效的共享报告。分身未共享的报告及其修订仅保存在私有历史。
 
 原始事件包含 `event_id`、主体/分身/会话 ID、UTC 时间、类型、来源、作者角色、原始正文、关联事件、模型/适配器元数据和完整性摘要。输出同时置于 `structuredContent` 和向后兼容的文本内容。工具业务输入错误或权限不符时检查 `result.isError`；未知方法、请求结构错误等检查 JSON-RPC `error`。HTTP 401/403 表示凭据或授权来源需要核对。
 
@@ -98,8 +86,8 @@ Remove-Item Env:SILICON_AGENT_TOKEN
 
 每次 POST 发送 Bearer 凭据、`Content-Type: application/json`、`Accept: application/json, text/event-stream`、`MCP-Protocol-Version`、`Mcp-Method`。调用工具另需 `Mcp-Name`。镜像头与正文必须吻合。具体组包、超时、UTF-8 与解码参考 [local_client.py](../packages/mcp-server/local_client.py)。服务只实现本项目需要的工具能力，采用私有本机配对授权；认证 OAuth 发现、长连接 SSE、MCP 资源与提示模板未作为能力发布。
 
-## 已执行验证
+## 验收记录
 
-官方 Python MCP SDK 1.29.0 通过 stdio 协商至 2025-11-25，发现 15 个工具，用 `report_state` 写入协议夹具，再用 `get_own_state` 读回同一事件 ID。现代 HTTP 由独立的协议契约与应用集成测试覆盖。原生 Codex CLI 0.167.0-alpha.4 在本次托管环境中因应用服务启动时遇只读文件系统而停止。该次原生模型调用标记为 NOT_RUN；可运行的宿主验收入口为 `packages/agent-example/verify_codex.py`。普通测试与日常服务无需模型凭据。[独立客户端与原生宿主记录](evidence/mcp-interop.json)
+Codex CLI 0.169.0 从向导生成的配置发现 17 个工具，三个原生线程并发写入独立分身，重新打开 A 后读回同一份报告。正文由测试程序提供。2026-07-28 HTTP 客户端和官方 Python SDK 1.29.0 也分别写入并读回。可用官方 2026-07-28 的 schema.json 运行 `python tests/verify_mcp_clients.py --schema 文件路径`。[客户端实测回执](evidence/1.0.2/mcp-clients.json) · [完整验收报告](TEST-REPORT.md) · [历史验收回执](evidence/mcp-interop.json)
 
 标准文档与版本依据见 [MCP 规范](https://modelcontextprotocol.io/specification/2026-07-28)、[Streamable HTTP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http) 和 [官方 TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)。

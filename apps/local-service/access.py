@@ -10,7 +10,8 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 PAIR_TTL = 600
-SESSION_TTL = 30 * 24 * 3600
+# Existing databases use an integer NOT NULL expiry. This value denotes until revoked.
+UNTIL_REVOKED = 253402300799
 
 
 class AccessError(Exception):
@@ -47,6 +48,13 @@ def finish_code(db, code_hash, target, state):
     db.execute("DELETE FROM codes WHERE hash=? AND target=?", (code_hash,target))
 
 
+def register_uninstall(db, token, origin):
+    if origin.startswith("chrome-extension://"):
+        # A holder of this capability can only revoke this one extension.
+        ticket = digest("sls-extension-uninstall-v1:" + token)
+        db.execute("INSERT OR REPLACE INTO uninstall_tickets VALUES (?,?)", (digest(ticket), digest(token)))
+
+
 def digest(value):
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
@@ -64,6 +72,8 @@ class Access:
                     state TEXT NOT NULL CHECK(state IN ('used','replaced')));
                 CREATE TABLE IF NOT EXISTS clients (
                     hash TEXT PRIMARY KEY, origin TEXT NOT NULL, expires INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS uninstall_tickets (
+                    ticket_hash TEXT PRIMARY KEY, client TEXT NOT NULL UNIQUE);
                 CREATE TABLE IF NOT EXISTS operations (
                     client TEXT NOT NULL, key_hash TEXT NOT NULL, operation TEXT NOT NULL, value TEXT NOT NULL,
                     PRIMARY KEY(client, key_hash));
@@ -166,17 +176,42 @@ class Access:
                 if row[1] <= now:
                     raise AccessError(410, "PAIR_EXPIRED", "配对码已过期。请在已连接的仪表盘重新生成配对码，或使用正式重新连接启动器。")
                 finish_code(db, code_hash, target, "used")
-                db.execute("INSERT INTO clients VALUES (?,?,?)", (digest(token), origin, now + SESSION_TTL))
-        return {"token": token, "expires_in": SESSION_TTL, "role": "owner"}
+                db.execute("INSERT INTO clients VALUES (?,?,?)", (digest(token), origin, UNTIL_REVOKED))
+                register_uninstall(db, token, origin)
+        return {"token": token, "expires_in": None, "role": "owner"}
 
     def check(self, token, origin):
         with self.connect() as db:
-            row = db.execute("SELECT origin FROM clients WHERE hash=? AND expires>?",
+            row = db.execute("SELECT origin,expires FROM clients WHERE hash=? AND expires>?",
                              (digest(token), int(time.time()))).fetchone()
         if not row:
             raise AccessError(401, "OWNER_REQUIRED", "需要本机所有者配对。")
         if row[0] != origin:
             raise AccessError(403, "ORIGIN_MISMATCH", "该凭据属于其他配对来源。")
+
+        if row[1] != UNTIL_REVOKED:
+            # Upgrade only a live, authenticated pairing from v1.0.1.
+            with self.connect() as db:
+                with db:
+                    db.execute("BEGIN IMMEDIATE")
+                    changed = db.execute("UPDATE clients SET expires=? WHERE hash=? AND expires=?",
+                                         (UNTIL_REVOKED, digest(token), row[1]))
+                    if changed.rowcount:
+                        register_uninstall(db, token, origin)
+
+    def rotate(self, token, origin):
+        replacement = "sls_owner_" + secrets.token_urlsafe(32)
+        with self.connect() as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                changed = db.execute("UPDATE clients SET hash=?,expires=? WHERE hash=? AND origin=? AND expires>?",
+                                     (digest(replacement), UNTIL_REVOKED, digest(token), origin, int(time.time())))
+                if changed.rowcount != 1:
+                    raise AccessError(401, "OWNER_REQUIRED", "需要本机所有者配对。")
+                db.execute("DELETE FROM operations WHERE client=?", (digest(token),))
+                db.execute("DELETE FROM uninstall_tickets WHERE client=?", (digest(token),))
+                register_uninstall(db, replacement, origin)
+        return replacement
 
     def revoke(self, token):
         with self.connect() as db:
@@ -184,6 +219,20 @@ class Access:
                 db.execute("BEGIN IMMEDIATE")
                 db.execute("DELETE FROM operations WHERE client=?", (digest(token),))
                 db.execute("DELETE FROM clients WHERE hash=?", (digest(token),))
+                db.execute("DELETE FROM uninstall_tickets WHERE client=?", (digest(token),))
+        return {"revoked": True}
+
+    def uninstall_extension(self, ticket):
+        if not isinstance(ticket, str) or len(ticket) != 64 or any(c not in "0123456789abcdef" for c in ticket):
+            raise AccessError(400, "INVALID_TICKET", "扩展注销标识无效。")
+        with self.connect() as db:
+            with db:
+                db.execute("BEGIN IMMEDIATE")
+                row = db.execute("SELECT client FROM uninstall_tickets WHERE ticket_hash=?", (digest(ticket),)).fetchone()
+                if row:
+                    db.execute("DELETE FROM operations WHERE client=?", row)
+                    db.execute("DELETE FROM clients WHERE hash=? AND origin LIKE 'chrome-extension://%'", row)
+                    db.execute("DELETE FROM uninstall_tickets WHERE client=?", row)
         return {"revoked": True}
 
     def settings(self, enabled=None, *, token=None, key=None):
@@ -207,6 +256,7 @@ class Access:
                 codes = db.execute("DELETE FROM codes").rowcount
                 db.execute("DELETE FROM finished_codes")
                 clients = db.execute("DELETE FROM clients").rowcount
+                db.execute("DELETE FROM uninstall_tickets")
         return {"revoked_clients": clients, "cancelled_codes": codes}
 
     def reset(self, current_token):
@@ -217,5 +267,6 @@ class Access:
                 db.execute("DELETE FROM codes")
                 db.execute("DELETE FROM finished_codes")
                 db.execute("DELETE FROM clients WHERE hash<>?", (digest(current_token),))
+                db.execute("DELETE FROM uninstall_tickets WHERE client<>?", (digest(current_token),))
                 db.execute("DELETE FROM settings")
                 db.execute("DELETE FROM operations")

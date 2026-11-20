@@ -10,19 +10,21 @@ from pathlib import Path
 # Windows embeddable Python isolates sys.path via its ._pth file.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from local_client import meta, send
-from mcp_wire import CAPABILITIES, INFO, INSTRUCTIONS, LEGACY, PREFIX, VERSION, error
+from autostart import StartupError, service_url
+from bridge_binding import BindingError, dispatch
+from local_client import meta
+from mcp_wire import CAPABILITIES, INFO, INSTRUCTIONS, LEGACY, LEGACY_VERSIONS, PREFIX, error, stdio_reply
 
 MAX_LINE = 128 * 1024
 
 def main():
-    if not os.environ.get("SILICON_AGENT_TOKEN"):
-        print("Set SILICON_AGENT_TOKEN in the MCP host environment.",file=sys.stderr)
+    if not any(os.environ.get(k) for k in ("SILICON_AGENT_TOKEN", "SILICON_INSTALLATION_FILE", "SILICON_INSTALLATION_TOKEN")):
+        print("Configure the installation through the dashboard, or set SILICON_AGENT_TOKEN for one instance.",file=sys.stderr)
         return 2
     lock = Lock()
     active = {}
     slots = BoundedSemaphore(32)
-    legacy_ready = False
+    legacy_version = None
     legacy_client = None
 
     def emit(obj):
@@ -30,7 +32,7 @@ def main():
         sys.stdout.buffer.write(data+b"\n")
         sys.stdout.buffer.flush()
 
-    def run_request(msg, old, marker, client_info):
+    def run_request(msg, legacy, marker, client_info):
         rid = msg["id"]
         with lock:
             if active.get(rid) is not marker:
@@ -38,18 +40,16 @@ def main():
                 slots.release()
                 return
         try:
-            if old:
+            if legacy:
                 params = dict(msg.get("params",{}))
                 params["_meta"] = {**params.get("_meta",{}),**meta("silicon-life-state-stdio-legacy")}
                 if client_info:
                     params["_meta"][PREFIX+"clientInfo"] = client_info
                 msg = {**msg,"params":params}
-            reply = send(msg)
-            if old and "result" in reply:
-                reply["result"].pop("resultType",None)
-                reply["result"].pop("_meta",None)
-            elif not old and msg["method"] == "server/discover" and "result" in reply:
-                reply["result"]["supportedVersions"] = [VERSION,LEGACY]
+            reply = dispatch(msg, service_url())
+            reply = stdio_reply(reply, msg["method"], legacy)
+        except (StartupError, BindingError) as exc:
+            reply = error(rid,-32603,str(exc))
         except (ValueError,OSError,TypeError,RecursionError,http.client.HTTPException):
             reply = error(rid,-32603,"Cannot reach or parse the authorized loopback MCP service")
         finally:
@@ -99,22 +99,26 @@ def main():
                     if not isinstance(params.get("protocolVersion"),str) or not isinstance(params.get("clientInfo"),dict) or not isinstance(params.get("capabilities"),dict):
                         emit(error(rid,-32602,"Invalid initialization parameters"))
                         continue
-                    legacy_ready = True
+                    requested = params["protocolVersion"]
+                    legacy_version = requested if requested in LEGACY_VERSIONS else LEGACY
                     legacy_client = {key: str(params["clientInfo"].get(key,""))[:128] for key in ("name","version")}
-                    emit({"jsonrpc":"2.0","id":rid,"result":{"protocolVersion":LEGACY,"capabilities":CAPABILITIES,"serverInfo":INFO,"instructions":INSTRUCTIONS}})
+                    emit({"jsonrpc":"2.0","id":rid,"result":{"protocolVersion":legacy_version,"capabilities":CAPABILITIES,"serverInfo":INFO,"instructions":INSTRUCTIONS}})
                     continue
-                if not modern and not legacy_ready:
+                if not modern and not legacy_version:
                     emit(error(rid,-32602,"Supply modern request _meta or initialize legacy MCP"))
                     continue
                 if not modern and method=="ping":
                     emit({"jsonrpc":"2.0","id":rid,"result":{}})
+                    continue
+                if not modern and method=="server/discover":
+                    emit(error(rid,-32601,"Discovery requires a modern protocol version"))
                     continue
                 if not slots.acquire(blocking=False):
                     emit(error(rid,-32603,"Too many in-flight requests"))
                     continue
                 marker = object()
                 active[rid] = marker
-                pool.submit(run_request,msg,not modern,marker,legacy_client)
+                pool.submit(run_request,msg,None if modern else legacy_version,marker,legacy_client)
     return 0
 
 if __name__ == "__main__":

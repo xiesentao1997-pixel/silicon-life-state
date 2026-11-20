@@ -27,13 +27,13 @@ export function clearChat(scope='all', target='') {
 }
 
 export function mountChat(host, model, api, refresh) {
-  if (!model.instances.length) {
+  if (!model.subjectId) {
     clearChat();
-    host.innerHTML = '<div class="card"><h2>选择对话分身</h2><p class="quiet">先建立主体和分身，模型的自主报告将记入所选分身。</p><button type="button" class="btn primary" data-act="make-instance">创建分身</button></div>';
+    host.innerHTML = '<div class="card"><h2>选择对话主体</h2><p class="quiet">先建立主体，连接模型时会自动建立对话分身。</p><button type="button" class="btn primary" data-act="make-subject">创建主体</button></div>';
     return;
   }
   if (current && (current.subject !== model.subjectId ||
-      !model.instances.some(i => i.instance_id === current.selected))) clearChat();
+      (current.selected && !model.instances.some(i => i.instance_id === current.selected)))) clearChat();
   if (current) {
     host.replaceChildren(current.node);
     if (!current.chatId) populate(current, model.instances);
@@ -43,11 +43,12 @@ export function mountChat(host, model, api, refresh) {
   node.innerHTML = `
     <section class="card chat-connection"><h2>连接模型</h2>
       <form id="chat-connect-form" autocomplete="off">
-        <label class="field">记录分身<select id="chat-instance" required></select></label>
+        <label class="field">记录分身<select id="chat-instance"></select></label>
         <label class="field">API 基础地址<input id="chat-url" type="url" required value="http://127.0.0.1:11434/v1" spellcheck="false"></label>
         <label class="field">模型名称<input id="chat-model" placeholder="填写服务提供的模型 ID" required maxlength="256" spellcheck="false"></label>
         <label class="field">API 密钥（如需）<input id="chat-key" type="password" autocomplete="off" maxlength="2048"></label>
         <label class="chat-consent" hidden><input id="chat-remote" type="checkbox">允许将本次对话、工具说明与执行回执发送到上述 HTTPS 模型服务</label>
+        <label><input id="chat-history" type="checkbox" checked>允许模型读取本分身和主体共享历史，修订、共享、回应记录及更名</label>
         <button class="btn primary" id="chat-connect" type="submit">连接模型服务</button>
       </form>
       <div id="chat-bound" hidden><strong id="chat-model-name"></strong><p class="quiet" id="chat-bound-instance"></p>
@@ -62,7 +63,7 @@ export function mountChat(host, model, api, refresh) {
         <div class="actions"><button id="chat-send" type="submit" class="btn primary" disabled>发送</button></div>
       </form>
     </section>`;
-  const ui = current = {node,api,subject:model.subjectId,selected:model.instanceId||model.instances[0].instance_id,
+  const ui = current = {node,api,subject:model.subjectId,selected:model.instanceId||'',creationKey:crypto.randomUUID(),
                         chatId:null,pending:null,connected:false};
   const get = id => node.querySelector('#chat-'+id);
   populate(ui, model.instances);
@@ -76,6 +77,7 @@ export function mountChat(host, model, api, refresh) {
     get('remote').parentElement.hidden = local;
     get('remote').required = !local;
     get('remote').checked = false;
+    get('history').checked = local;
     get('key').value = '';
   }
   get('url').addEventListener('input', endpointChanged);
@@ -88,23 +90,28 @@ export function mountChat(host, model, api, refresh) {
     get('error').textContent = '';
     get('status').textContent = '正在核验模型服务和本地 MCP…';
     try {
-      const result = await api('chat/connect',{instance_id:get('instance').value,base_url:get('url').value.trim(),
-        model:get('model').value.trim(),api_key:key.value,allow_remote:get('remote').checked,idempotency_key:crypto.randomUUID()});
+      const selection = get('instance').value;
+      const scope = selection ? {instance_id:selection} : {subject_id:model.subjectId};
+      const result = await api('chat/connect',{...scope,base_url:get('url').value.trim(),
+        model:get('model').value.trim(),api_key:key.value,allow_remote:get('remote').checked,allow_history_tools:get('history').checked,
+        idempotency_key:selection ? crypto.randomUUID() : ui.creationKey});
       if (ui !== current) {
         await api('chat/close',{chat_id:result.chat_id});
         return;
       }
       ui.chatId = result.chat_id;
       ui.session = result.session_id;
+      ui.selected = model.instanceId = result.instance_id;
       key.value = '';
       get('connect-form').hidden = true;
       get('bound').hidden = false;
       get('model-name').textContent = result.model;
-      get('bound-instance').textContent = get('instance').selectedOptions[0].textContent + ' · ' + result.tools.length + ' 个 MCP 工具可用';
+      get('bound-instance').textContent = result.instance_name + ' · ' + result.tools.length + ' 个 MCP 工具可用';
       get('status').textContent = statuses[result.provider_status] || '等待模型回复';
       get('transcript').replaceChildren();
       get('send').disabled = get('text').disabled = false;
       get('text').focus();
+      await refresh(true);
     } catch (err) {
       if (ui !== current) return;
       get('status').textContent = '尚未连接模型';
@@ -124,6 +131,7 @@ export function mountChat(host, model, api, refresh) {
       }
       if (ui !== current) return;
       ui.chatId = null;
+      model.instanceId = '';
       clearChat();
       await refresh(true);
     } catch (err) {if (ui === current) get('error').textContent = err.message;}
@@ -177,7 +185,9 @@ export function mountChat(host, model, api, refresh) {
 }
 function populate(ui, instances) {
   const select = ui.node.querySelector('#chat-instance');
-  select.replaceChildren(...instances.map(i => {
+  const create = element('option','','新对话 · 自动创建独立分身');
+  create.value = '';
+  select.replaceChildren(create,...instances.map(i => {
     const option = element('option','',i.name);
     option.value = i.instance_id;
     option.selected = option.value === ui.selected;

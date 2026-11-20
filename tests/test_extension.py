@@ -105,7 +105,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 const ready = JSON.parse(readFileSync(0,'utf8'));
 const code = readFileSync(process.argv[1]);
-const {localApi,key,endpoint,textOf} = await import('data:text/javascript;base64,'+code.toString('base64'));
+const {localApi,key,endpoint,textOf,setUninstallLink} = await import('data:text/javascript;base64,'+code.toString('base64'));
 const state = {port:Number(new URL(ready.base_url).port)};
 globalThis.chrome = {runtime:{id:'a'.repeat(32)},storage:{local:{get:async()=>({...state})}}};
 assert.throws(()=>endpoint('invalid'));
@@ -125,7 +125,15 @@ assert.equal(snap.instances[0].state,null);
 chrome.runtime.id='b'.repeat(32);
 await assert.rejects(localApi('snapshot'), {status:403});
 chrome.runtime.id='a'.repeat(32);
-await localApi('logout',{body:{}});
+let uninstall;
+chrome.runtime.setUninstallURL = async url => {uninstall = new URL(url);};
+await setUninstallLink(state.port, state.token);
+assert.equal(uninstall.origin,ready.base_url);
+const ticket = new URLSearchParams(uninstall.hash.slice(1)).get('uninstall');
+assert(ticket && !uninstall.href.includes(state.token));
+const retire = await fetch(ready.base_url+'/api/extension/uninstalled',{method:'POST',headers:{
+  Origin:ready.base_url,'Content-Type':'application/json'},body:JSON.stringify({ticket})});
+assert.equal(retire.status,200);
 await assert.rejects(localApi('snapshot'), {status:401});
 """
                     result = subprocess.run(['node','--input-type=module','-e',src,str(EXT/'api.js')],

@@ -15,3 +15,5 @@ generated_images/
 dev-data/
 runtime/
 .sls-runtime-*/
+/RELEASE.txt
+/SOURCE-FILES.sha256

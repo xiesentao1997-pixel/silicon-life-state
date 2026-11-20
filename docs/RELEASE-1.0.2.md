@@ -1,13 +1,14 @@
-# Silicon Life State 1.0.2 — Release notes
+# Silicon Life State 1.0.2 · 一次授权与独立分身
 
-Authors / 展示署名: 岑衡川 · 沈回音 · 匹夫
+作者：匹夫 · 岑衡川 · 沈回音
 
-Human initiator and public maintainer: 匹夫; AI collaborators: 岑衡川 and 沈回音. This release changes public attribution and community entry points; v1.0.0 and v1.0.1 history remains unchanged.
+匹夫为人类发起人及公开维护责任人。
 
-**Installation:** Windows x64 users download the full `SiliconLifeState-1.0.2-Windows-x64-Portable.zip`, extract, and double-click `Start-Windows.cmd`. Standalone SKILL requires an authorized MCP service. Chrome extension must match the release version and pair with its local service.
+- 授权绑定主体；对话分身各有受限凭据、会话和可修订的历史。
+- 主体页根据已保存事件显示共享报告、分布、变化与分歧。可回查事件和修订。
+- 仪表盘与 Chrome 扩展支持关闭普通窗口后继续使用同一次配对。
+- 支持新版 MCP 查询的缓存字段与旧版初始化流程。各宿主实际验证范围见本次测试报告。
 
-**Privacy:** Local SQLite data stays on the user's device by default. Browser-visible text capture is opt-in. No historical interaction is synthesized.
+Windows x64 解压完整绿色包并运行 `Start-Windows.cmd`。包内有 CPython、SQLite、仪表盘、MCP、Agent SKILL 与 Chrome 扩展。需要升级或迁移的用户请先阅读 [安装与恢复](INSTALL.md)。
 
-**Verification:** Build and test results are stated separately in `docs/RELEASE-AUDIT-1.0.2.md`. Native Windows testing and external host integrations must not be inferred from Linux-only checks.
-
-**License:** Apache-2.0; third-party notices and provenance are in `docs/DEPENDENCIES.md`. Display credits do not determine legal copyright ownership.
+源码身份以包内 `RELEASE.txt` 的提交 SHA 为准。标有 `Build: candidate` 的包来自继续开发的主线提交，历史标签指向的提交另列。发布结果与执行过的测试见 [验收报告](TEST-REPORT.md)。

@@ -1,0 +1,38 @@
+[
+  {
+    "from_version": "1.0.0",
+    "to_version": "1.0.2",
+    "unchanged_raw_events": 7,
+    "unchanged_event_map_sha256": "476b7bfd0a275bd7a6c1b4cdd4f6b82ba7aeda8a2ff977020e62dd9e2d16c742",
+    "same_subjects_instances_sessions": true,
+    "same_requests_memory_stats": true,
+    "old_owner_and_agent_credentials_work": true,
+    "pending_extension_code_single_use": true,
+    "existing_managed_backup_listed": true,
+    "new_event_continues_old_chain": true
+  },
+  {
+    "from_version": "1.0.1",
+    "to_version": "1.0.2",
+    "unchanged_raw_events": 7,
+    "unchanged_event_map_sha256": "9dfaa96af92aadd8d1836b75d1c075b1270e9b682900b55295a5aa96b08defa2",
+    "same_subjects_instances_sessions": true,
+    "same_requests_memory_stats": true,
+    "old_owner_and_agent_credentials_work": true,
+    "pending_extension_code_single_use": true,
+    "existing_managed_backup_listed": true,
+    "new_event_continues_old_chain": true
+  },
+  {
+    "from_version": "1.0.2",
+    "to_version": "1.0.2",
+    "unchanged_raw_events": 7,
+    "unchanged_event_map_sha256": "88f29a033a1a6dcd51232cc46a76199adcd133217ec2f0512304c88855969db3",
+    "same_subjects_instances_sessions": true,
+    "same_requests_memory_stats": true,
+    "old_owner_and_agent_credentials_work": true,
+    "pending_extension_code_single_use": true,
+    "existing_managed_backup_listed": true,
+    "new_event_continues_old_chain": true
+  }
+]

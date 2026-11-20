@@ -15,6 +15,7 @@ import threading
 import time
 from collections import OrderedDict
 from datetime import datetime, timezone
+from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -31,13 +32,31 @@ NAME = "silicon_life_state"
 CONFIG_LIMIT = 2 * 1024 * 1024
 BEGIN = "# BEGIN Silicon Life State MCP"
 END = "# END Silicon Life State MCP"
-MASK = "<分身专用令牌>"
+MASK = "<私有凭据文件路径或分身令牌>"
 PROBE = "silicon-life-state-wizard-probe"
 
 
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
+
+@dataclass(frozen=True)
+class HostAdapter:
+    format: str
+    manual: str
+    transport_type: bool = False
+
+    @property
+    def servers_key(self):
+        return "mcp_servers" if self.format == "toml" else "mcpServers"
+
+
+ADAPTERS = {
+    "codex": HostAdapter("toml", "在个人 config.toml 合并此表，重新启动 Codex，使用 /mcp 检查工具。"),
+    "claude": HostAdapter("json", "在 Claude Desktop 的设置 → 开发者 → 编辑配置合并条目，完全退出后重新启动。"),
+    "cursor": HostAdapter("json", "在 Cursor Settings → Tools & MCP 打开个人 ~/.cursor/mcp.json，合并此 stdio 条目并重新加载。", True),
+    "other": HostAdapter("manual", "按宿主说明填写本机 command、args 和 env。HTTP 方式填写 URL 和 Authorization。宿主不支持本机 MCP 时，请使用已支持的客户端。"),
+}
 
 def targets():
     home = Path.home()
@@ -61,7 +80,14 @@ def targets():
             app = next((p for p in (Path("/Applications/Claude.app"),home/"Applications/Claude.app") if p.is_dir()),None)
         else:
             app = shutil.which("claude-desktop")
-    return {"codex": (codex_dir/"config.toml", exe, False), "claude": (claude, app, ambiguous)}
+    cursor = shutil.which("cursor")
+    if not cursor and sys.platform == "win32":
+        candidate = local / "Programs/cursor/Cursor.exe"
+        cursor = candidate if candidate.is_file() else None
+    if not cursor and sys.platform == "darwin":
+        cursor = next((p for p in (Path("/Applications/Cursor.app"),home/"Applications/Cursor.app") if p.is_dir()),None)
+    return {"codex": (codex_dir/"config.toml", exe, False), "claude": (claude, app, ambiguous),
+            "cursor": (home/".cursor/mcp.json", cursor, False)}
 
 
 def safe_file(path):
@@ -99,18 +125,21 @@ def strict_json(text):
 def parse_config(host,raw):
     try:
         text = raw.decode("utf-8-sig")
-        doc = tomllib.loads(text) if host=="codex" else strict_json(text)
+        doc = tomllib.loads(text) if ADAPTERS[host].format=="toml" else strict_json(text)
     except (ValueError,UnicodeError,RecursionError) as exc:
         raise ValueError("现有配置语法无效。请先在宿主编辑器修正，原文件已保留。") from exc
-    key = "mcp_servers" if host=="codex" else "mcpServers"
+    key = ADAPTERS[host].servers_key
     if not isinstance(doc,dict) or not isinstance(doc.get(key,{}),dict):
         raise ValueError("配置顶层与 MCP 服务列表必须是对象。")
     return doc
 
 
 def snippet(host,entry):
-    if host!="codex":
-        return json.dumps({"mcpServers":{NAME:entry}},ensure_ascii=False,indent=2)
+    if ADAPTERS[host].format=="manual":
+        # A transport description, not a universal host config file.
+        return json.dumps(entry, ensure_ascii=False, indent=2)
+    if ADAPTERS[host].format=="json":
+        return json.dumps({ADAPTERS[host].servers_key:{NAME:entry}},ensure_ascii=False,indent=2)
     q = lambda s: json.dumps(s,ensure_ascii=False)
     return ("[mcp_servers."+NAME+"]\ncommand = "+q(entry["command"])+"\nargs = "+q(entry["args"])+
             "\n\n[mcp_servers."+NAME+".env]\n"+
@@ -119,7 +148,7 @@ def snippet(host,entry):
 
 def merged(host,old,entry):
     doc = parse_config(host,old) if old is not None else {}
-    key = "mcp_servers" if host=="codex" else "mcpServers"
+    key = ADAPTERS[host].servers_key
     servers = doc.get(key,{})
     legacy_name = "silicon-life-state"
     def known_bridge(value):
@@ -127,7 +156,7 @@ def merged(host,old,entry):
             return False
         args = value.get("args",[])
         env = value.get("env",{})
-        return isinstance(args,list) and isinstance(env,dict) and "SILICON_AGENT_TOKEN" in env and any(
+        return isinstance(args,list) and isinstance(env,dict) and bool({"SILICON_AGENT_TOKEN","SILICON_INSTALLATION_FILE"} & env.keys()) and any(
             isinstance(arg,str) and arg.replace("\\","/").endswith("/packages/mcp-server/stdio.py") for arg in args)
     # 1.0.0 emitted the hyphenated JSON key. Only migrate entries identifiable
     # by our script and grant variable; other applications keep their own keys.
@@ -141,9 +170,9 @@ def merged(host,old,entry):
     if migrate:
         del expected[key][legacy_name]
     expected.setdefault(key,{})[NAME]=entry
-    if host=="codex":
+    if ADAPTERS[host].format=="toml":
         if isinstance(existing,dict) and (set(existing)-{"command","args","env"} or
-                isinstance(existing.get("env"),dict) and set(existing["env"])-set(entry["env"])):
+                isinstance(existing.get("env"),dict) and set(existing["env"])-set(entry["env"])-{"SILICON_AGENT_TOKEN"}):
             raise ValueError("本项目的 Codex 条目含额外个人设置，请手动合并以保留这些设置。")
         text = old.decode("utf-8-sig") if old is not None else ""
         # Only remove a block produced by this wizard. Semantic verification below
@@ -166,7 +195,8 @@ def merged(host,old,entry):
         if existing is not None and not known_bridge(existing):
             raise ValueError("同名服务已有其他用途。原配置已保留，请手动选择服务名。")
         if isinstance(existing,dict):
-            expected[key][NAME]={**existing,**entry,"env":{**existing.get("env",{}),**entry["env"]}}
+            retained = {k:v for k,v in existing.get("env",{}).items() if k not in {"SILICON_AGENT_TOKEN","SILICON_INSTALLATION_TOKEN","SILICON_CONVERSATION_ID"}}
+            expected[key][NAME]={**existing,**entry,"env":{**retained,**entry["env"]}}
         updated = json.dumps(expected,ensure_ascii=False,indent=2,allow_nan=False)+"\n"
     raw=updated.encode("utf-8")
     if parse_config(host,raw)!=expected:
@@ -227,11 +257,15 @@ class HostWizard:
         self.discoveries=OrderedDict()
         self.lock=threading.Lock()
 
-    def entry(self,transport,token):
+    def entry(self,transport,credential,host="claude"):
         if transport=="http":
-            return {"url":self.url,"headers":{"Authorization":"Bearer "+token}}
-        return {"command":sys.executable,"args":[str(ROOT/"packages/mcp-server/stdio.py")],
-                "env":{"SILICON_AGENT_TOKEN":token,"SILICON_MCP_URL":self.url}}
+            return {"url":self.url,"headers":{"Authorization":"Bearer "+credential}}
+        entry = {"command":sys.executable, "args":[str(ROOT/"packages/mcp-server/stdio.py")],
+                 "env":{"SILICON_INSTALLATION_FILE":str(credential), "SILICON_MCP_URL":self.url,
+                        "SILICON_DATA_DIR":str(self.store.files.home), "SILICON_HOST":host}}
+        if ADAPTERS[host].transport_type:
+            entry["type"] = "stdio"
+        return entry
 
     def discovery(self,grant,msg):
         info=msg.get("params",{}).get("_meta",{}).get(PREFIX+"clientInfo",{})
@@ -247,39 +281,53 @@ class HostWizard:
     def status(self,plan):
         state=self.store.admin("snapshot",{"subject_id":plan["subject_id"]})
         grants=self.store.admin("list_agents",{})["grants"]
-        live=next((g for g in grants if g["instance_id"]==plan["instance_id"]),None)
+        installation = plan.get("installation_id")
+        if plan["transport"]=="stdio":
+            instances = {g["instance_id"] for g in grants if installation and g.get("installation_id")==installation}
+            identity = installation
+        else:
+            instances = {plan["instance_id"]}
+            identity = next((g["grant_id"] for g in grants if g["instance_id"] in instances),None)
         with self.lock:
-            observed=self.discoveries.get(live["grant_id"]) if live else None
-        report=next((ev for ev in state["events"] if ev["instance_id"]==plan["instance_id"]
+            observed = self.discoveries.get(identity)
+        report=next((ev for ev in state["events"] if ev["instance_id"] in instances
                      and ev["type"]=="report_state" and ev["source"]=="agent_direct"),None)
         return {"probe":plan.get("probe"),"host_discovery":observed,
                 "report":{"event_id":report["event_id"],"at":report["created_at"],"model_version":report.get("model_version")} if report else None}
 
     def preview(self,owner,host,transport,iid,sid):
-        if host not in ("codex","claude","other") or transport not in ("stdio","http") or (host!="other" and transport!="stdio"):
+        if not isinstance(host,str) or host not in ADAPTERS or transport not in ("stdio","http") or (host!="other" and transport!="stdio"):
             raise AccessError(400,"INVALID_HOST","请选择支持的宿主和连接方式。")
+        if not isinstance(sid,str) or not sid:
+            raise AccessError(400,"SUBJECT_REQUIRED","请选择要授权的主体。")
         state=self.store.admin("snapshot",{"subject_id":sid})
-        if not any(i["instance_id"]==iid for i in state["instances"]):
+        if transport=="http" and not any(i["instance_id"]==iid for i in state["instances"]):
             raise AccessError(400,"INVALID_INSTANCE","所选分身不属于当前主体。")
         path,install,ambiguous=self.targets.get(host,(None,None,False))
-        manual="请把本项目条目合并到宿主的 MCP 设置，并在宿主重新加载后检查工具列表。"
+        manual=ADAPTERS[host].manual
         raw=None; reason=None; action=None
-        if host in ("claude","codex"):
-            manual=("完全退出 Claude Desktop，在 设置 → 开发者 → 编辑配置 合并条目，保存后重新启动。"
-                    if host=="claude" else "在个人 config.toml 合并本项目表，保存后重新启动 Codex，使用 /mcp 检查工具。")
+        installation = None
         if path:
             try:
                 if ambiguous:
                     raise ValueError("检测到多个 Claude 配置，请使用 Claude Desktop 的“编辑配置”确认真实位置。")
                 raw=safe_file(path)
-                _,action=merged(host,raw,self.entry(transport,MASK))
+                if raw:
+                    existing=parse_config(host,raw).get(ADAPTERS[host].servers_key,{}).get(NAME,{})
+                    current=existing.get("env",{}).get("SILICON_INSTALLATION_FILE") if isinstance(existing,dict) and isinstance(existing.get("env",{}),dict) else None
+                    for row in self.store.admin("list_installations",{})["installations"]:
+                        owned_path=self.store.files.home/"host-grants"/(row["installation_id"]+".token")
+                        if row["subject_id"]==sid and row["host"]==host and row["active"] and str(owned_path)==current:
+                            installation=row["installation_id"]
+                            break
+                _,action=merged(host,raw,self.entry(transport,MASK,host))
             except (OSError,ValueError) as exc:
                 reason=str(exc) if isinstance(exc,ValueError) else "无法读取目标配置，请检查文件权限。"
         else:
             reason="此宿主由你选择配置位置，可复制下方条目手动接入。"
         pid=secrets.token_urlsafe(24)
         plan={"owner":hashlib.sha256(owner.encode()).digest(),"instance_id":iid,"subject_id":sid,
-              "host":host,"transport":transport,"path":path,"digest":fingerprint(raw),"reason":reason,
+              "host":host,"transport":transport,"installation_id":installation,"path":path,"digest":fingerprint(raw),"reason":reason,
               "expiry":time.monotonic()+900,"key":"host-wizard-"+pid}
         self.plans[pid]=plan
         while len(self.plans)>100:
@@ -287,7 +335,7 @@ class HostWizard:
         return {"plan_id":pid,"host":host,"os":sys.platform,"target":str(path) if path else None,
                 "installation":str(install) if install else None,"existing_file":raw is not None,
                 "can_write":bool(path and not reason),"action":action,"reason":reason,"manual":manual,
-                "preview":snippet(host,self.entry(transport,MASK)),"status":self.status(plan)}
+                "preview":snippet(host,self.entry(transport,MASK,host)),"status":self.status(plan)}
 
     def dispatch(self,owner,action,body):
         allowed={"host","transport","instance_id","subject_id"} if action=="preview" else {"plan_id","confirm"}
@@ -312,8 +360,15 @@ class HostWizard:
                     raise AccessError(409,"CONFIG_CHANGED","文件已改变。请重新检查配置。")
             except (OSError,ValueError) as exc:
                 raise AccessError(409,"CONFIG_WRITE_FAILED","无法安全读取目标文件。请重新检查配置或手动合并。") from exc
-        grant=self.store.admin("connection_grant",{"instance_id":plan["instance_id"],"idempotency_key":plan["key"]})
-        entry=self.entry(plan["transport"],grant["token"])
+        if plan["transport"]=="stdio":
+            if not plan.get("installation_id"):
+                grant=self.store.admin("issue_installation",{"subject_id":plan["subject_id"],"host":plan["host"],"idempotency_key":plan["key"]})
+                plan["installation_id"]=grant["installation_id"]
+            credential=self.store.host_grant_file(plan["installation_id"])
+        else:
+            grant=self.store.admin("connection_grant",{"instance_id":plan["instance_id"],"idempotency_key":plan["key"]})
+            credential=grant["token"]
+        entry=self.entry(plan["transport"],credential,plan["host"])
         if action=="copy":
             return {"config":snippet(plan["host"],entry)}
         if action=="apply":

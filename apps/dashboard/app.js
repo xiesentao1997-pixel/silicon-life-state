@@ -8,6 +8,7 @@ const dialog = $('#dialog'),
   dialogBody = $('#dialog-body');
 const initial = new URLSearchParams(location.hash.slice(1));
 const base = {
+  subject_summaries: [],
   subjects: [],
   instances: [],
   sessions: [],
@@ -46,7 +47,8 @@ const m = {
   problem: '',
   theme: localStorage.getItem('sls-theme') === 'cream' ? 'cream' : 'night'
 };
-let token = sessionStorage.getItem('sls-owner') || '',
+const bindingKey = 'sls-dashboard-binding';
+let binding = localStorage.getItem(bindingKey) || '',
   stamp = '',
   pollGeneration = 0,
   toastTimer,
@@ -128,8 +130,10 @@ function saveHash() {
   history.replaceState(null, '', '#' + p.toString());
 }
 function clearOwner() {
+  ++pollGeneration;
   clearChat();
-  token = '';
+  binding = '';
+  localStorage.removeItem(bindingKey);
   sessionStorage.removeItem('sls-owner');
   stamp = '';
   m.snapshotReady = false;
@@ -137,6 +141,8 @@ function clearOwner() {
   Object.assign(m, base, {
     settings: null,
     grants: null,
+    installations: [],
+    installationsError: '',
     grantsError: '',
     backups: null,
     backupsError: ''
@@ -145,11 +151,11 @@ function clearOwner() {
   m.instanceId = '';
   if (dialog.open) close();
 }
-async function api(path, body = null, auth = true) {
-  const headers = {};
+async function api(path, body = null, auth = true, headers = {}) {
+  const requestBinding = binding;
   if (auth) {
-    if (!token) throw Error('请先用本地服务提供的配对码连接仪表盘。');
-    headers.Authorization = 'Bearer ' + token;
+    if (!binding) throw Error('请先用本地服务提供的配对码连接仪表盘。');
+    headers['X-SLS-Dashboard'] = requestBinding;
   }
   if (body !== null) headers['Content-Type'] = 'application/json';
   let res;
@@ -159,7 +165,7 @@ async function api(path, body = null, auth = true) {
       headers,
       body: body === null ? undefined : JSON.stringify(body),
       cache: 'no-store',
-      credentials: 'omit',
+      credentials: 'same-origin',
       signal: AbortSignal.timeout(path === 'chat/message' ? 210000 : 20000)
     });
   } catch {
@@ -169,7 +175,7 @@ async function api(path, body = null, auth = true) {
   const data = await res.json();
   m.online = true;
   if (!res.ok) {
-    if (res.status === 401 && auth) {
+    if (res.status === 401 && auth && requestBinding === localStorage.getItem(bindingKey)) {
       clearOwner();
       render();
     }
@@ -195,7 +201,7 @@ async function write(path, body, key = id()) {
 }
 async function refresh(force = false) {
   const generation = ++pollGeneration;
-  if (!token) {
+  if (!binding) {
     try {
       await api('health', null, false);
       m.problem = '';
@@ -222,6 +228,7 @@ async function refresh(force = false) {
     m.requests = snap.requests.filter(r => r.original?.subject_id === selected);
     m.memory = snap.memory || base.memory;
     m.stats = snap.stats || {};
+    m.subject_summaries = snap.subject_summaries || [];
     m.snapshotReady = true;
     m.problem = '';
     if (m.instanceId && !m.instances.some(i => i.instance_id === m.instanceId)) m.instanceId = '';
@@ -251,7 +258,7 @@ function shell() {
     + $('#sidebar').classList.contains('open') + '">' + icon('menu', 17)
     + '</button><div class="crumb"><span>观测空间</span>' + icon('chev', 12) + '<strong>' + h(pages[m.view].title)
     + '</strong></div><span class="push"></span><span class="local" title="本地服务状态"><i class="dot"></i>'
-    + h(m.online ? token ? '本地已连接' : '等待配对' : '服务未连接')
+    + h(m.online ? binding ? '本地已连接' : '等待配对' : '服务未连接')
     + '</span><button class="icon-btn" data-act="theme" aria-label="切换至' + (m.theme === 'night' ? '奶油白' : '星夜深色')
     + '主题">' + icon(m.theme === 'night' ? 'sun' : 'moon', 16) + '</button>';
 }
@@ -261,15 +268,15 @@ function render() {
     cursor = document.activeElement?.selectionStart;
   shell();
   document.title = pages[m.view].title + ' · 硅基生命状态';
-  const banner = !token && m.view !== 'about' ? '<div class="note row"><span>使用本地服务窗口提供的一次性配对码，连接你的档案。</span>'
+  const banner = !binding && m.view !== 'about' ? '<div class="note row"><span>使用本地服务窗口提供的一次性配对码，连接你的档案。</span>'
     + button('pair', '连接仪表盘', 'plug') + '</div>' : '';
   const offline = m.problem ? '<div class="note" role="status">' + h(m.problem)
     + (m.snapshotReady ? ' 显示本页最后一次读取的数据。' : '') + '</div>' : '';
   if (!m.snapshotReady && m.view !== 'about' && !m.online) content.innerHTML = offline + banner
-    + card('plug', '连接本地服务', empty('等待本地服务响应', '在项目目录启动 Start-Windows.cmd，或在其它系统运行 ./start.sh。'));else if (!m.snapshotReady && token && m.view !== 'about') content.innerHTML = offline
+    + card('plug', '连接本地服务', empty('等待本地服务响应', '在项目目录启动 Start-Windows.cmd，或在其它系统运行 ./start.sh。'));else if (!m.snapshotReady && binding && m.view !== 'about') content.innerHTML = offline
     + card('plug', '正在读取主体档案', empty('等待本地数据库响应'));else content.innerHTML = offline + banner
     + renderPage[m.view](m);
-  if ($('#chat-host') && token) mountChat($('#chat-host'), m, api, refresh);
+  if ($('#chat-host') && binding) mountChat($('#chat-host'), m, api, refresh);
   if (chatFocus?.isConnected) chatFocus.focus({preventScroll:true});
   if (artOK && $('.hero')) $('.hero').classList.add('art-loaded');
   if (focused) {
@@ -294,7 +301,7 @@ function setTheme(theme) {
   render();
 }
 async function loadAux() {
-  if (!token) return;
+  if (!binding) return;
   if (m.view === 'backup') {
     try {
       m.backups = (await api('backups')).backups;
@@ -304,7 +311,9 @@ async function loadAux() {
     }
   }
   if (m.view === 'settings') {
-    const [prefs, grants] = await Promise.allSettled([api('settings'), api('credentials')]);
+    const [prefs, grants, installs] = await Promise.allSettled([api('settings'), api('credentials'), api('installations')]);
+    m.installations = installs.status === 'fulfilled' ? installs.value.installations : [];
+    m.installationsError = installs.status === 'rejected' ? installs.reason.message : '';
     if (prefs.status === 'fulfilled') m.settings = prefs.value;else toast(prefs.reason.message);
     if (grants.status === 'fulfilled') {
       m.grants = grants.value.grants;
@@ -332,7 +341,7 @@ async function go(view) {
   await loadAux();
 }
 function requireSubject() {
-  if (!token) {
+  if (!binding) {
     pairDialog();
     return false;
   }
@@ -350,19 +359,28 @@ function requireInstance() {
   }
   return true;
 }
+function rememberBrowser(result) {
+  binding = result.binding;
+  localStorage.setItem(bindingKey, binding);
+  sessionStorage.removeItem('sls-owner');
+}
+window.addEventListener('storage', event => {
+  if (event.key !== bindingKey) return;
+  binding = localStorage.getItem(bindingKey) || '';
+  if (!binding) clearOwner();
+  refresh(true);
+});
+
 async function paired(code) {
-  const r = await api('pair', {
-    code
-  }, false);
-  token = r.token;
-  sessionStorage.setItem('sls-owner', token);
+  const r = await api('browser/pair', {code}, false);
+  rememberBrowser(r);
   m.problem = '';
   await refresh(true);
   await loadAux();
 }
 function pairDialog() {
   modal('连接本地仪表盘', '<p class="quiet">输入服务启动窗口中的仪表盘配对码。如已过期，Windows 双击项目目录的 <strong>Reconnect-Windows.cmd</strong>，macOS 或 Linux 运行 <code>sh start.sh --reconnect</code>。启动器会打开已授权的配对页面。</p>'
-    + field('一次性配对码', '<input name="code" autocomplete="off" required autofocus>'), async f => {
+    + button('recover-dashboard', '查看重新连接步骤', 'plug') + field('一次性配对码', '<input name="code" autocomplete="off" required autofocus>'), async f => {
     await paired(f.code.trim());
     close();
     toast('仪表盘已配对');
@@ -374,14 +392,14 @@ function setup() {
   const step = (n, title, text, act, complete) => '<div class="step"><span class="step-no">'
     + (complete ? icon('check', 15) : n) + '</span><div><h3>' + h(title) + '</h3><p>' + h(text) + '</p>' + act
     + '</div></div>';
-  modal('接入向导', step(1, '启动并连接本地服务', token ? '此浏览器已与服务配对。' : 'Windows 双击 Start-Windows.cmd；macOS 或 Linux 运行 ./start.sh。', token ? '' : button('pair', '输入配对码'), !!token)
-    + step(2, '创建主体和分身', m.subject ? '当前主体「' + m.subject.name + '」，已登记 ' + m.instances.length
-    + ' 个分身。' : '一个逻辑主体可以包含多个独立窗口。', m.subject ? button('make-instance', '添加分身', 'plus') : button('make-subject', '创建主体', 'plus'), m.instances.length > 0)
+  modal('接入向导', step(1, '启动并连接本地服务', binding ? '此浏览器已与服务配对。' : 'Windows 双击 Start-Windows.cmd；macOS 或 Linux 运行 ./start.sh。', binding ? '' : button('pair', '输入配对码'), !!binding)
+    + step(2, '创建主体', m.subject ? '当前主体「' + m.subject.name + '」，已登记 ' + m.instances.length
+    + ' 个分身。' : '一个逻辑主体可以包含多个独立窗口。', m.subject ? button('make-instance', '添加分身', 'plus') : button('make-subject', '创建主体', 'plus'), !!m.subject)
     + step(3, '安装 Chrome 扩展', observed ? '此主体已收到授权网页观察记录。' : '在 chrome://extensions 开启开发者模式，加载已解压的 apps/extension 目录，使用扩展配对码连接。', button('pair-extension', '生成扩展配对码', 'plug'), observed)
-    + step(4, '连接 SKILL 和 MCP', reportSeen ? '已收到本主体分身通过 MCP 提交的状态报告。' : '将 packages/agent-skill/silicon-life-state 安装到 Agent 的 Skills 目录。用分身凭据配置 MCP 后，由 Agent 自行决定是否调用 report_state。', button('issue', '连接 Agent 宿主', 'nodes'), reportSeen));
+    + step(4, '授权 Agent 宿主并验证自主写入', reportSeen ? '已收到本主体分身通过 MCP 提交的状态报告。' : '首次为此主体授权宿主并安装随附的 SKILL。Agent 可在新对话中建立独立分身、自主调用 report_state。', button('issue', '连接 Agent 宿主', 'nodes'), reportSeen));
 }
 function newSubject() {
-  if (!token) {
+  if (!binding) {
     pairDialog();
     return;
   }
@@ -433,7 +451,7 @@ function showExtensionCode(code, details) {
 }
 async function extensionPairEntry(code = '') {
   await go('settings');
-  if (!token) {
+  if (!binding) {
     pairDialog();
     return;
   }
@@ -444,13 +462,13 @@ async function extensionPairEntry(code = '') {
       return;
     }
   }
-  modal('获取插件配对码', '<p>准备好插件后点击下方按钮。配对码有效期从生成时开始。</p>'
+  modal('重新连接 Chrome 扩展', '<p>准备好插件后点击下方按钮。配对码有效期从生成时开始。</p>'
     + '<div class="actions">' + button('pair-extension', '重新生成配对码', 'plug') + button('close', '取消') + '</div>');
 }
 async function issue(instanceId) {
-  if (!requireInstance()) return;
+  if (!requireSubject()) return;
   const {hostWizard} = await import('./wizard.js');
-  hostWizard({modal, api, toast, instanceField, subjectId: m.subjectId, instanceId});
+  hostWizard({modal, api, toast, instanceField, subjectId: m.subjectId, instanceId, hasInstances: m.instances.length > 0});
 }
 function eventDialog(value) {
   const pools = [m.events, m.memory.proposals, m.memory.common, m.memory.disputed, m.memory.decisions, m.instances.map(i => i.state).filter(Boolean), ...m.requests.map(r => r.history)];
@@ -682,6 +700,11 @@ async function act(a, v) {
     setTheme(m.theme === 'night' ? 'cream' : 'night');
     return;
   }
+  if (a === 'recover-dashboard') {
+    modal('重新连接本机仪表盘', '<p>在持有原数据的设备上，Windows 双击 <code>Reconnect-Windows.cmd</code>；macOS / Linux 在原目录运行 <code>sh start.sh --reconnect</code>。启动器会打开已配对的页面。</p>'
+      + button('pair', '输入新的配对码', 'plug'));
+    return;
+  }
   if (a === 'pair') {
     pairDialog();
     return;
@@ -710,11 +733,55 @@ async function act(a, v) {
     render();
     return;
   }
-  if (!token) {
+  if (!binding) {
     pairDialog();
     return;
   }
   switch (a) {
+    case 'rename-subject':
+    case 'rename-instance': {
+      const subject = a === 'rename-subject';
+      const entity = subject ? m.subject : m.instances.find(i => i.instance_id === v);
+      if (!entity) break;
+      const name = subject ? '主体' : '分身';
+      const key = id();
+      modal('修改' + name + '名称', field('显示名称', '<input name="name" maxlength="100" value="' + h(entity.name) + '" required autofocus>'), async f => {
+        await write(subject ? 'subjects/rename' : 'instances/rename', {name:f.name.trim(),
+          ...(subject ? {subject_id:entity.subject_id} : {instance_id:entity.instance_id})}, key);
+        close();
+        await refresh(true);
+        toast(name + '名称已更新');
+      });
+      break;
+    }
+    case 'revoke-installation': {
+      const key = id();
+      modal('撤销宿主安装授权', '<p>此安装及其所属分身将停止读写。历史保留在本机。</p>', async () => {
+        await write('installations/revoke', {installation_id:v}, key);
+        close();
+        await loadAux();
+        toast('宿主授权已撤销');
+      }, '撤销授权', true);
+      break;
+    }
+    case 'rotate-installation':
+    case 'restore-installation': {
+      const key = id();
+      const rotation = a === 'rotate-installation';
+      const label = rotation ? '轮换宿主凭据' : '重新授权并恢复原主体';
+      modal(label, '<p>为这次安装签发新凭据。向导管理的本机凭据文件将自动同步；手工配置的宿主需要更新凭据。</p>', async () => {
+        const result = await write('installations/' + (rotation ? 'rotate' : 'restore'), {installation_id:v}, key);
+        await loadAux();
+        modal(label, '<p>本机向导管理的凭据文件已同步。手工配置的宿主可复制新凭据，替换原凭据后重新连接。</p><details><summary>手工配置凭据</summary><pre tabindex="0">' + h(result.token)
+          + '</pre>' + button('copy', '复制新凭据', 'copy') + '</details>' + button('close', '完成'));
+        capturedSecret = result.token;
+      }, label);
+      break;
+    }
+    case 'rotate-local':
+      rememberBrowser(await api('pair/rotate', {}));
+      toast('此浏览器的配对凭据已轮换');
+      break;
     case 'open-instance':
       m.instanceId = v;
       await go('instances');
@@ -905,24 +972,46 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') $('#sidebar').classList.remove('open');
 });
 async function boot() {
+  const uninstall = initial.get('uninstall');
+  if (uninstall) {
+    try {
+      await api('extension/uninstalled', {ticket:uninstall}, false);
+      toast('已清理此扩展的安装配对');
+    } catch (e) {
+      // Keep the revocation-only URL so reopening after a service restart can finish cleanup.
+      m.problem = e.message + '。启动本机服务后刷新本页以完成扩展注销。';
+      render();
+      return;
+    }
+  }
   const pairing = initial.get('pair');
   const wantsExtension = initial.get('action') === 'pair-extension';
   saveHash();
   render();
-  if (pairing) {
+  // Only a still-open legacy tab can hold a v1.0.1 bearer. Exchange it for
+  // the split dashboard credential and immediately invalidate the old bearer.
+  const legacy = sessionStorage.getItem('sls-owner');
+  if (!binding && legacy) {
+    try { rememberBrowser(await api('browser/upgrade', {}, false, {Authorization: 'Bearer ' + legacy})); }
+    catch (e) { if (e.status === 401) sessionStorage.removeItem('sls-owner'); }
+  }
+  if (binding) {
+    try { await api('browser/session'); } catch (e) { m.problem = e.message; }
+  }
+  if (pairing && !binding) {
     try {
       await paired(pairing);
     } catch (e) {
       m.problem = e.message;
       await refresh(true);
-      if (!token) pairDialog();
+      if (!binding) pairDialog();
       modalError(e.message);
     }
   } else {
     await refresh(true);
     await loadAux();
   }
-  if (wantsExtension && (!pairing || token)) {
+  if (wantsExtension && (!pairing || binding)) {
     try { await extensionPairEntry(initial.get('extension_code') || ''); }
     catch (e) { modalError(e.message); }
   }

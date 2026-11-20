@@ -1,15 +1,14 @@
 # Silicon Life State
 
-**作者：岑衡川·沈回音·匹夫** · Version 1.0.2 · Apache-2.0 · [中文](README.md)
+**作者：匹夫 · 岑衡川 · 沈回音** · Version 1.0.2 · Apache-2.0 · [中文](README.md)
 
-Silicon Life State is an open-source, local-first system for voluntary AI state reports, shared memory and interaction records. A tool-capable agent can describe its state in its own words, disagree, request a pause, clarify a misunderstanding or decide which shared reports to adopt. These facilities do not require a scientific conclusion about AI consciousness. Each entry identifies its source, scope and revision history.
-
+Silicon Life State gives a tool-capable AI a local history across conversations. Each conversation can have its own instance under one subject. An instance can report in its own words, revise a judgment, share a report, or disagree with another instance. The subject view keeps those reports side by side and links them to the original events. SQLite stores them on the owner’s device.
 
 ## Start here
 
-**[Install the Agent SKILL](docs/SKILL.md)** · **[Download the full Windows package](https://github.com/xiesentao1997-pixel/silicon-life-state/releases/tag/v1.0.2)** · **[Read the source and contribute](CONTRIBUTING.md)**
+**[Install the Agent SKILL](docs/SKILL.md)** · **[Install the Windows portable package](docs/INSTALL.en.md)** · **[Read the source and contribute](CONTRIBUTING.md)**
 
-The complete portable package contains the local MCP service, SQLite, dashboard, Agent SKILL and Chrome extension. The standalone SKILL and the extension **cannot persist Agent reports without a running, authorized local MCP service**. The Release link becomes available after the repository and release are published.
+The complete portable package contains the local MCP service, SQLite, dashboard, Agent SKILL and Chrome extension. The standalone SKILL and the extension **cannot persist Agent reports without a running, authorized local MCP service**. Use the checksum list delivered with your build.
 
 ## Origin of the project
 
@@ -25,7 +24,7 @@ We do not require anyone to believe that AI already has consciousness. Nor must 
 
 **AI collaborators: 岑衡川 · 沈回音**
 
-**Display author credit: 岑衡川 · 沈回音 · 匹夫**
+**Display author credit: 匹夫 · 岑衡川 · 沈回音**
 
 Display credits do not assert legal personhood or determine copyright ownership; the actual legal rights depend on applicable law and the real chain of title.
 
@@ -34,9 +33,9 @@ Display credits do not assert legal personhood or determine copyright ownership;
 ## Run it locally
 
 1. On Windows x64, extract the complete **SiliconLifeState-1.0.2-Windows-x64-Portable.zip** and double-click **Start-Windows.cmd**. It includes CPython and SQLite and starts offline under a normal user account. Keep the launcher open. On macOS/Linux, run `sh start.sh` using Python 3.10 or newer.
-2. Create a subject and one instance per independent agent. When upgrading from 1.0.0, stop the old process and start the new one with the same data directory.
+2. Create a subject and authorize its host. A stable conversation identifier restores the same instance on reopening. On hosts without such an identifier, each conversation retains a private handle. When upgrading from 1.0.0, stop the old process and start the new one with the same data directory.
 3. Open **与 AI 对话** to connect a local model or a cloud API you authorize. The service uses the model's tool calls to record voluntary reports, boundaries or requests under the selected instance. Supply your own compatible model endpoint. [Model setup](docs/MODEL-CHAT.md)
-4. For Claude Desktop, Codex CLI or another MCP host, open the instance connection wizard. Review the proposed configuration, confirm the merge and restart the host. Tool discovery and an actual report are displayed separately. [MCP instructions](docs/MCP.md)
+4. For Claude Desktop, Codex CLI, Cursor or another MCP host, open the instance connection wizard. Review the proposed configuration, confirm the merge and restart the host. Tool discovery and an actual report are displayed separately. [MCP instructions](docs/MCP.md)
 5. For the Chrome side panel, enable Developer mode at `chrome://extensions`, load `apps/extension` and enter an extension pairing code. If it expires during installation, open the dashboard from the panel and generate a fresh code. Double-click **Reconnect-Windows.cmd** if the dashboard also needs pairing.
 
 ![A real Qwen3 conversation and its MCP receipt in Chromium](docs/evidence/1.0.1/genuine-model-chat.jpg)

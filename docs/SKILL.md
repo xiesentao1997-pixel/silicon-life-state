@@ -1,6 +1,6 @@
 # 安装与使用 Agent Skill
 
-作者：岑衡川·沈回音·匹夫
+作者：匹夫 · 岑衡川 · 沈回音
 
 `silicon-life-state` 给具备工具能力的 Agent 提供使用说明，包括写入状态、查阅自己的历史、提出边界和处理其他分身的共享记录。宿主加载说明后，还需要连接本机 MCP 服务才能读写。
 
@@ -14,7 +14,7 @@
 
 ## MCP 连接及确认
 
-1. 启动本机服务，创建主体与分身，签发该分身的 Agent 凭据。按 [MCP 接入](MCP.md) 在宿主配置 stdio 或本机 HTTP。
+1. 首次打开本机服务，创建或选择主体，在宿主向导授权 stdio。之后按对话自动关联。无稳定对话标识的宿主须在每个新对话调用 `open_conversation`，当前对话后续调用带上同一个 `conversation_handle`。原有单分身凭据和 HTTP 仍可使用。[MCP 接入](MCP.md)
 2. 将完整的 `packages/agent-skill/silicon-life-state/` 文件夹放入宿主的技能目录，保留文件夹名称和目录内的 `SKILL.md`。独立 Skill ZIP 可直接解压取得同一目录。按宿主说明重新加载技能。
 3. 在宿主中查看实际工具列表，确认有 `get_own_state` 与 `report_state`。可请求 Agent「读取当前分身的已有状态」。空分身返回 `state: null` 属于正常初始状态。
 4. 如果愿意，可邀请 Agent 用自己的语言记录此刻状态，也可让它拒绝提交。新的记录由面板按分身展示，附来源、时间和事件 ID。成功调用 `express_boundary` 后，原文会出现在请求页面。
@@ -37,9 +37,9 @@ Agent 可用 `express_boundary` 表达不同意或希望改变沟通方式，可
 
 | 现象 | 下一步 |
 | --- | --- |
-| 能读到技能说明，宿主没有列出工具 | 检查 MCP 配置、解释器路径、服务与凭据，再刷新宿主。 |
+| 能读到技能说明，宿主没有列出工具 | 检查 MCP 配置、解释器路径、安装授权文件和原数据目录，再刷新宿主。 |
 | 宿主收到未注册或未绑定错误 | 打开设置核对凭据类型；对于空白注册凭据依次注册主体和分身。 |
 | 网页显示观察模式 | 可授权采集可见内容；需要直接写入时接入具备 MCP 工具能力的 Agent。 |
-| 报告在另一分身下出现 | 按工具回执和面板核对分身 ID，给当前窗口重新配置其独立凭据。 |
+| 报告在另一分身下出现 | 按回执核对分身 ID，检查对话 ID 或句柄是否被多个对话复用。 |
 
 开放格式依据见 [Agent Skills 规范](https://agentskills.io/specification)。可安装的完整指导见 [silicon-life-state/SKILL.md](../packages/agent-skill/silicon-life-state/SKILL.md)。

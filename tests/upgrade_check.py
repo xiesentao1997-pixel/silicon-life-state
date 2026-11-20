@@ -1,4 +1,4 @@
-"""Upgrade an isolated, genuine v1.0.0 archive to the current service.
+"""Upgrade an isolated, genuine historical archive to the current service.
 
 Run at repo root: python tests/upgrade_check.py --output /tmp/upgrade-report.json
 Without Git history, pass --old-root PATH to the extracted 1.0.0 source package.
@@ -29,8 +29,8 @@ def upgrade_generated(old_root, temp):
     data = temp / 'profile'
     old = Local(data, server=old_root / 'apps/local-service/server.py').start()
     try:
-        assert old.ready['version'] == '1.0.0'
-        subject = old.subject('1.0.0 归档升级')
+        assert old.ready['version'] == (old_root/'VERSION').read_text().strip()
+        subject = old.subject('归档升级')
         a, token_a = old.window(subject, '窗口 A')
         _, token_b = old.window(subject, '窗口 B')
         source = old.tool(token_a, 'report_state', state_text='保留原文与未知原因', cause_unknown=True)
@@ -109,6 +109,7 @@ def upgrade_historical(old_root, path, temp):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--old-root',type=Path)
+    parser.add_argument('--baseline',choices=['v1.0.0','v1.0.1','v1.0.2'],default='v1.0.0')
     parser.add_argument('--archived-agent-db',type=Path)
     parser.add_argument('--output',type=Path)
     args=parser.parse_args()
@@ -117,12 +118,12 @@ def main():
         old_root=args.old_root
         if old_root is None:
             old_root=temp/'baseline'
-            archive=temp/'v1.0.0.zip'
-            subprocess.run(['git','-C',str(ROOT),'archive','--format=zip','-o',str(archive),'v1.0.0'],check=True)
+            archive=temp/'baseline.zip'
+            subprocess.run(['git','-C',str(ROOT),'archive','--format=zip','-o',str(archive),args.baseline],check=True)
             with ZipFile(archive) as z:
                 z.extractall(old_root)
-        if (old_root/'VERSION').read_text().strip()!='1.0.0':
-            parser.error('The baseline must be a 1.0.0 checkout')
+        if (old_root/'VERSION').read_text().strip() not in ('1.0.0','1.0.1','1.0.2'):
+            parser.error('Unrecognized historical source version')
         report={'result':'PASS','utc':datetime.now(timezone.utc).isoformat(),
                 'upgrade':upgrade_generated(old_root,temp)}
         if args.archived_agent_db:

@@ -98,7 +98,7 @@ def exercise(browser, local):
     owner = context.new_page()
     grant = local.api("pair/code", {"target":"dashboard"})["code"]
     owner.goto(local.base + "/#pair=" + grant)
-    owner.wait_for_function("!!sessionStorage.getItem('sls-owner')")
+    owner.wait_for_function("!!localStorage.getItem('sls-dashboard-binding')")
     issued = []
     owner.on("request", lambda req: issued.append(req.url) if req.url == local.base + "/api/pair/code" else None)
     owner.goto(nav["url"])

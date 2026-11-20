@@ -52,9 +52,13 @@ def provider():
             else:
                 names = ["report_state","express_boundary","request_adjustment"] if text!="unknown" else ["delete_all"]
                 calls = []
+                if text == 'read-and-name':
+                    names = ['read_subject_memory', 'rename_instance']
                 for n in names:
                     state = self.headers.get('Authorization','')[7:] if text == 'echo-argument' else "可审计的夹具原文"
                     args = {"state_text":state} if n=="report_state" else {"text":"夹具请求"}
+                    if text == 'read-and-name':
+                        args = {} if n == 'read_subject_memory' else {'name':'新名字'}
                     if text == 'bad-arguments':
                         args = {"state_text":state,"interaction_reference":"invented"} if n=="report_state" else {"text":None}
                     calls.append({"id":"call_"+n,"type":"function","function":{"name":n,"arguments":json.dumps(args)}})
@@ -128,6 +132,30 @@ class ModelChatTest(unittest.TestCase):
         self.assertTrue(self.local.api('integrity')['ok'])
         self.local.api("chat/close",{"chat_id":cid})
         self.assertEqual(self.local.raw('/api/chat/message',{'chat_id':cid,'text':'normal','idempotency_key':fresh()},self.local.owner)[0],404)
+
+    def test_new_conversation_identity_and_scoped_history_tools(self):
+        settings = {k:v for k,v in self.settings.items() if k != 'instance_id'}
+        settings.update(subject_id=self.subject, allow_history_tools=True)
+        key = fresh()
+        a = self.local.api('chat/connect', {**settings, 'idempotency_key':key})
+        self.assertEqual(self.local.api('chat/connect', {**settings, 'idempotency_key':key}), a)
+        b = self.local.api('chat/connect', settings)
+        self.assertNotEqual(a['instance_id'], b['instance_id'])
+        shared = self.local.tool(self.agent, 'report_state', state_text='同意共享', shared_to_subject=True)
+        hidden = self.local.tool(self.agent, 'report_state', state_text='个人记录')
+        answer = self.ask(a['chat_id'], 'read-and-name')
+        self.assertEqual(answer['tool_errors'], [])
+        self.assertEqual(answer['tool_events'], [])
+        turns = self.provider.received[-1]['messages']
+        history = json.loads(next(m['content'] for m in turns if m.get('tool_call_id') == 'call_read_subject_memory'))
+        self.assertIn(shared['event_id'], json.dumps(history))
+        self.assertNotIn(hidden['event_id'], json.dumps(history))
+        self.local.api('chat/close', {'chat_id':a['chat_id']})
+        restored = self.local.api('chat/connect', {**self.settings, 'instance_id':a['instance_id']})
+        self.assertEqual(restored['instance_id'], a['instance_id'])
+        self.assertEqual(restored['instance_name'], '新名字')
+        limited = self.ask(restored['chat_id'], 'read-and-name')
+        self.assertEqual([e['code'] for e in limited['tool_errors']], ['TOOL_NOT_ALLOWED'] * 2)
 
     def test_failed_second_round_is_resumable_without_duplicate_events(self):
         cid = self.start()

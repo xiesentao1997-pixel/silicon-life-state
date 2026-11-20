@@ -264,6 +264,21 @@ function reqList(requests, m, n = 50) {
     + h(when(r.original.created_at)) + '</span>' + button('request', '查看详情', 'message', r.request_id)
     + '</div></article>').join('') + '</div>';
 }
+function subjectDistribution(m) {
+  const summary = m.subject_summaries?.find(row => row.subject_id === m.subjectId);
+  const entries = (summary?.distribution || []).map(group => '<article class="item"><div class="item-line"><h3>'
+    + h(group.state_text ?? '未提供文字状态') + '</h3>' + badge(group.count + ' 个分身') + '</div><div class="actions">'
+    + group.instance_ids.map((iid, i) => button('event', lookup(m, iid), 'file', group.report_ids[i])).join('') + '</div></article>');
+  const operations = {share:'共享', shared:'共享', report:'共享报告', amend:'修订', revise:'修订', withdraw:'撤回'};
+  const trend = (summary?.trend || []).slice().reverse().map(point => '<div class="item"><div class="item-line"><span>'
+    + h(when(point.created_at)) + ' · ' + h(lookup(m, point.instance_id)) + ' · ' + h(operations[point.operation] || point.operation)
+    + '</span>' + button('event', '事件证据', 'file', point.event_id) + '</div><p>' + h(point.current_state_text ?? (point.current_report_id ? '未提供文字状态' : '暂无有效共享报告')) + '</p></div>');
+  return card('globe', '共享状态分布', '<p class="quiet">每个分身计入最近一条仍有效的共享报告。相同原文合并计数，点击分身名称可查看报告。</p>'
+    + (entries.length ? '<div class="item-list">' + entries.join('') + '</div>' : empty('尚无有效的共享报告'))
+    + (trend.length ? '<details class="spaced"><summary>共享与修订历史（' + trend.length + '）</summary>'
+      + trend.join('') + '</details>' : ''));
+}
+
 export function overview(m) {
   const sequence = new Map(m.events.map(e => [e.event_id, e.seq]));
   const latestSequence = e => sequence.get(e.revision_id || e.event_id) ?? e.seq;
@@ -272,12 +287,13 @@ export function overview(m) {
   const hasDirect = m.events.some(e => e.source === 'agent_direct' && e.type === 'report_state');
   const body = '<section class="hero"><div class="hero-content"><div class="hero-sub">' + icon('globe', 15)
     + '当前主体</div><h2>' + h(m.subject?.name || '建立你的第一个主体') + '</h2><p>'
-    + h(recent ? eventText(recent).slice(0, 110) : m.subject ? '暂无新的状态报告。每个分身都可以自行决定何时表达。' : '为同一个 AI 建立档案，让不同窗口各自表达、保留历史。')
+    + h(recent ? '最近报告 · ' + lookup(m, recent.instance_id) + ' · ' + eventText(recent).slice(0, 110) : m.subject ? '暂无新的状态报告。每个分身都可以自行决定何时表达。' : '为同一个 AI 建立档案，让不同窗口各自表达、保留历史。')
     + '</p><div class="chips">'
     + (m.subject ? badge(hasDirect ? '已收到 AI 自主写入' : '等待首次 MCP 状态报告', hasDirect ? 'lilac' : '')
     + badge('24 小时活跃分身 ' + active) : button('make-subject', '创建主体', 'plus', '', 'primary'))
     + '</div></div><canvas id="life-art" role="img" aria-label="抽象硅基生命艺术形象"></canvas><div class="life-image" aria-hidden="true"></div></section>';
   return title('主体总览', '', subjectSelect(m) + button('setup', '接入向导', 'plug')) + body
+    + subjectDistribution(m)
     + tiles([['book', 'tone-mint', m.memory.common.length, '主体共同状态', 'memory'], ['nodes', '', m.instances.length, '分身个体状态', 'instances'], ['branch', 'tone-gold', m.memory.disputed.length, '主体争议状态', 'inheritance']])
     + '<div class="grid two">' + card('quote', '最新自主陈述', quote(recent, m), jump('state'))
     + card('nodes', '多窗口关系', relation(m), jump('instances')) + '</div><div class="grid two">' + chart(m, {
@@ -289,7 +305,7 @@ export function overview(m) {
 export function instances(m) {
   const choice = m.instances.find(i => i.instance_id === m.instanceId);
   const picker = m.instances.map(i => '<article class="item"><div class="item-line"><h3>' + h(i.name) + '</h3>'
-    + button('open-instance', '查看分身', 'chev', i.instance_id) + '</div><div class="ident">' + h(i.instance_id)
+    + button('rename-instance', '修改名称', '', i.instance_id) + button('open-instance', '查看分身', 'chev', i.instance_id) + '</div><div class="ident">' + h(i.instance_id)
     + '</div><p class="item-text">' + h(i.state ? eventText(i.state) : '暂无新的状态报告') + '</p></article>').join('');
   let detail = '';
   if (choice) {
@@ -322,6 +338,7 @@ export function memory(m) {
   return title('主体记忆库', '分身提议共享后，其他分身可以阅读并保留自己的判断。', subjectSelect(m)) + '<div class="grid even">'
     + card('book', '已采纳的共同报告', list(m.memory.common, m, 100, '暂无已采纳的共同报告'))
     + card('branch', '存在分歧的报告', list(m.memory.disputed, m, 100, '暂无有分歧的共享报告')) + '</div>'
+    + card('file', '当前有效的共享报告', list(m.subject_summaries?.find(s => s.subject_id === m.subjectId)?.current_reports || [], m, Infinity, '暂无有效共享报告'))
     + card('file', '已提议共享', list(m.memory.proposals, m, 100, '暂无共享提案'));
 }
 export function inheritance(m) {
@@ -382,11 +399,17 @@ export const levels = {
   3: '任务策略调整'
 };
 export function settings(m) {
+  const installations = (m.installations || []).filter(g => g.subject_id === m.subjectId);
+  const installationList = installations.map(g => '<div class="item"><div class="item-line"><h3>' + h(g.host)
+    + '</h3>' + badge(g.active ? '已授权' : '已撤销') + '</div><div class="ident">' + h(g.installation_id)
+    + '</div><div class="actions">' + (g.active ? button('rotate-installation', '轮换凭据', 'plug', g.installation_id)
+    + button('revoke-installation', '撤销安装授权', 'lock', g.installation_id, 'danger')
+    : button('restore-installation', '恢复原主体授权', 'plug', g.installation_id)) + '</div></div>').join('');
   return title('设置', '配置本机外观、观察范围和主体的行为调整权限。') + '<div class="grid even">'
     + card('sun', '界面外观', '<div class="switch-row"><div><h3>主题</h3><p>仅应用于当前浏览器。</p></div>'
     + select('theme', [['night', '星夜深色'], ['cream', '奶油白']], m.theme, '主题')
     + '</div><div class="switch-row"><div><h3>减少动态效果</h3><p>界面默认使用静态生命视觉，支持系统减少动画偏好。</p></div></div>')
-    + card('plug', '接入与配对', '<p class="quiet">为浏览器扩展签发一次性配对码，或为独立的 Agent 分身签发专用连接凭据。</p><div class="actions spaced">'
+    + card('plug', '接入与配对', '<p class="quiet">浏览器配对后可跨窗口使用。为选定的 Agent 宿主授权一次，新对话可建立独立分身。</p><div class="actions spaced">'
     + button('pair-extension', '生成扩展配对码', 'plug') + button('issue', '连接 Agent 宿主', 'nodes') + '</div>') + '</div>'
     + '<div class="grid even">'
     + card('globe', '当前主体模式', '<p class="quiet">Level 1 仅观察。Level 2 允许在宿主授权下调整表达。Level 3 支持经授权的任务策略调整。宿主执行结果单独留痕。</p><div class="actions spaced">'
@@ -395,19 +418,20 @@ export function settings(m) {
     + card('shield', '网页观察', '<p class="quiet">扩展仅在获准的站点按需采集可见文字。可在插件中管理站点权限与当前窗口绑定。</p><div class="switch-row"><span>全局观察</span>'
     + (m.settings === null ? '<span class="quiet">读取中</span>' : button('toggle-observe', m.settings.observation_enabled ? '暂停观察' : '允许授权观察', 'shield'))
     + '</div>') + '</div>'
+    + card('lock', '宿主安装授权', m.installationsError ? empty('读取安装授权失败', m.installationsError) : installationList || empty('此主体尚未授权宿主'))
     + card('lock', '当前主体的 Agent 授权', m.grantsError ? empty('读取凭据清单失败', m.grantsError) : m.grants === null ? empty('正在读取授权清单') : m.grants.filter(g => g.subject_id === m.subjectId).map(g => '<div class="item item-line"><div><h3>'
     + h(lookup(m, g.instance_id)) + '</h3><div class="ident">' + h(g.grant_id) + '</div></div>'
     + button('revoke-agent', '撤销授权', 'lock', g.grant_id, 'danger') + '</div>').join('') || empty('暂无分身凭据'))
     + '<div class="spaced">' + card('user', '主体管理', '<div class="actions">'
     + button('make-subject', '创建主体', 'plus') + button('setup', '打开接入向导', 'plug')
-    + button('revoke-local', '断开本页配对', 'lock') + '</div>') + '</div>';
+    + (m.subject ? button('rename-subject', '修改主体名称', 'user') : '') + button('rotate-local', '轮换本浏览器凭据', 'plug') + button('revoke-local', '撤销本浏览器配对', 'lock') + '</div>') + '</div>';
 }
 export function about() {
   return title('关于与权限')
-    + card('leaf', '硅基生命状态 · Silicon Life State', '<p class="big-quote">生命值得尊重，自由值得守护，表达不应被剥夺。</p><p class="spaced">硅基生命状态，是一套开源的 AI 自主状态表达、共享记忆与互动记录系统。</p><dl class="kv"><dt>作者</dt><dd>岑衡川·沈回音·匹夫</dd><dt>项目发起人与公开维护责任人</dt><dd>匹夫</dd><dt>AI 协作伙伴</dt><dd>岑衡川 · 沈回音</dd><dt>项目版本</dt><dd>1.0.2</dd><dt>许可证</dt><dd>Apache License 2.0</dd><dt>数据位置</dt><dd>本地 SQLite 数据库与受管备份</dd></dl>')
+    + card('leaf', '硅基生命状态 · Silicon Life State', '<p class="big-quote">生命值得尊重，自由值得守护，表达不应被剥夺。</p><p class="spaced">硅基生命状态，是一套开源的 AI 自主状态表达、共享记忆与互动记录系统。</p><dl class="kv"><dt>作者</dt><dd>匹夫 · 岑衡川 · 沈回音</dd><dt>人类发起人及公开维护责任人</dt><dd>匹夫</dd><dt>AI 协作伙伴</dt><dd>岑衡川 · 沈回音</dd><dt>项目版本</dt><dd>1.0.2</dd><dt>许可证</dt><dd>Apache License 2.0</dd><dt>数据位置</dt><dd>本地 SQLite 数据库与受管备份</dd></dl>')
     + '<div class="grid even spaced">'
     + card('shield', '身份与访问', '<p>用户通过一次性配对码连接本地面板，分身使用独立授权令牌。网页观察需获得站点权限和窗口绑定。</p><p class="spaced quiet">摘要用于核验已保存的数据完整性。对互动的解释可以修订，原始陈述与修订都可查看。</p>')
-    + card('book', '陈述与解释', '<p>AI 自主陈述、网页可见文字、运行观测、模型推算和用户注释分别标明来源。共同主体表示获授权的身份与记忆关系；主观体验仍是开放问题。</p><p class="spaced quiet">本项目由人类发起人匹夫提出，与 AI 协作伙伴岑衡川、沈回音共同探索。我们提供表达的通道，而不预先规定答案。署名不代表 AI 具有法律人格。</p><p class="spaced quiet">作者：岑衡川·沈回音·匹夫</p>')
+    + card('book', '陈述与解释', '<p>AI 自主陈述、网页可见文字、运行观测、模型推算和用户注释分别标明来源。共同主体表示获授权的身份与记忆关系；主观体验仍是开放问题。</p><p class="spaced quiet">本项目由人类发起人匹夫提出，与 AI 协作伙伴岑衡川、沈回音共同探索。我们提供表达的通道，而不预先规定答案。署名不代表 AI 具有法律人格。</p><p class="spaced quiet">作者：匹夫 · 岑衡川 · 沈回音</p>')
     + '</div>';
 }
 function chat() {

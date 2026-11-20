@@ -7,6 +7,8 @@ from catalog import BY_NAME, TOOLS, validate_args
 
 VERSION = "2026-07-28"
 LEGACY = "2025-11-25"
+LEGACY_VERSIONS = (LEGACY, "2025-06-18", "2025-03-26", "2024-11-05")
+STDIO_VERSIONS = (VERSION, *LEGACY_VERSIONS)
 PREFIX = "io.modelcontextprotocol/"
 INFO = {"name": "silicon-life-state", "version": "1.0.2"}
 CAPABILITIES = {"tools": {}}
@@ -31,6 +33,28 @@ def content(result, is_error=False):
     if not is_error:
         fields["structuredContent"] = result
     return fields
+
+def stdio_reply(reply, method, legacy_version):
+    """Translate the current loopback result to the actual client's stdio revision."""
+    result = reply.get("result")
+    if result is None:
+        failure = reply.get("error", {})
+        if failure.get("code") == -32022:
+            failure["data"]["supported"] = list(STDIO_VERSIONS)
+        return reply
+    if legacy_version is None:
+        if method == "server/discover":
+            result["supportedVersions"] = list(STDIO_VERSIONS)
+        return reply
+    for field in ("resultType", "_meta", "ttlMs", "cacheScope"):
+        result.pop(field, None)
+    if legacy_version < "2025-06-18":
+        result.pop("structuredContent", None)
+        if "tools" in result:
+            omit = {"outputSchema", "annotations"} if legacy_version == "2024-11-05" else {"outputSchema"}
+            result["tools"] = [{key:value for key,value in tool.items() if key not in omit}
+                               for tool in result["tools"]]
+    return reply
 
 def read_header_name(raw):
     if raw is None:
@@ -108,4 +132,7 @@ def handle_http(message, headers, invoke):
             fields = content(result)
     else:
         return 404, extra, error(rid,-32601,"Method not found")
+    # These are the only cacheable operations this service implements (SEP-2549).
+    if method in ("server/discover", "tools/list"):
+        fields.update(ttlMs=0, cacheScope="private")
     return 200, extra, success(rid,fields)

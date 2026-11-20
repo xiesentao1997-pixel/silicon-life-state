@@ -1,6 +1,6 @@
 # 开发、测试与构建
 
-作者：岑衡川·沈回音·匹夫
+作者：匹夫 · 岑衡川 · 沈回音
 
 项目公开后，可直接 `git clone https://github.com/xiesentao1997-pixel/silicon-life-state.git`。使用一条 main 主线。Release 由版本标签标识。源码 ZIP 可直接修改运行；需要保留提交对象与标签时，用完整包内的 Git bundle 建立本地仓库。
 
@@ -46,7 +46,7 @@ python tests/live_model_chat.py --endpoint http://127.0.0.1:8080/v1 --model qwen
 python scripts/build_release.py --ref v1.0.2 --fetch-runtime --output dist/1.0.2
 ```
 
-脚本读取标签对应的 Git 对象，并校验所附 CPython 官方 ZIP 的大小和 SHA-256。离线构建可以用 `--windows-runtime /path/to/python-3.14.10-embed-amd64.zip` 指定预先下载的原件。对无法访问 Python.org 的独立构建环境，可以使用 `--runtime-from-baseline /path/to/SiliconLifeState-1.0.1-Windows-x64-Portable.zip` 复用 1.0.1 内已经逐文件验证的官方运行时（强制校验历史整包 SHA-256 与上游原始文件摘要）。完整包、源码、浏览器扩展、SKILL、本地服务、README、验收报告及总 SHA-256 清单位于 dist/1.0.2/。源码文件和 ZIP 的时间戳采用固定值。用户可用 `sha256sum -c SHA256SUMS.txt`，或在 Windows PowerShell 中使用 `Get-FileHash -Algorithm SHA256 文件名` 核对下载。分发时保留 LICENSE 和 NOTICE。
+需要从历史标签之后的主线提交构建同版本候选包时，将命令中的 `--ref v1.0.2` 换成 `--candidate --ref HEAD`。候选模式要求历史标签是 HEAD 的祖先，并在产物中写明两个提交。默认模式读取标签对应的 Git 对象，并校验所附 CPython 官方 ZIP 的大小和 SHA-256。离线构建可以用 `--windows-runtime /path/to/python-3.14.10-embed-amd64.zip` 指定预先下载的原件。对无法访问 Python.org 的独立构建环境，可以使用 `--runtime-from-baseline /path/to/SiliconLifeState-1.0.1-Windows-x64-Portable.zip` 复用 1.0.1 内已经逐文件验证的官方运行时（强制校验历史整包 SHA-256 与上游原始文件摘要）。完整包、源码、浏览器扩展、SKILL、本地服务、README、验收报告及总 SHA-256 清单位于 dist/1.0.2/。源码文件和 ZIP 的时间戳采用固定值。用户可用 `sha256sum -c SHA256SUMS.txt`，或在 Windows PowerShell 中使用 `Get-FileHash -Algorithm SHA256 文件名` 核对下载。分发时保留 LICENSE 和 NOTICE。
 
 配置的 GitHub Actions 工作流可在项目发布到获授权仓库后执行 Windows、Linux、macOS 的测试。实际在哪些系统执行过，以当前验收报告为准。
 

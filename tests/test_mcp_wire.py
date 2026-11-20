@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT=Path(__file__).resolve().parents[1]
 WIRE=ROOT/"packages"/"mcp-server"
 sys.path.insert(0,str(WIRE))
-from mcp_wire import BY_NAME, LEGACY, PREFIX, VERSION, handle_http
+from mcp_wire import BY_NAME, LEGACY, LEGACY_VERSIONS, PREFIX, STDIO_VERSIONS, VERSION, handle_http
 from local_client import as_header, message
 
 def headers(req):
@@ -30,6 +30,15 @@ class WireTests(unittest.TestCase):
         self.assertEqual(status,200)
         self.assertEqual(reply["result"]["supportedVersions"],[VERSION])
         self.assertEqual(reply["result"]["resultType"],"complete")
+
+    def test_cache_hints_apply_to_complete_cacheable_results_only(self):
+        for method in ("server/discover", "tools/list"):
+            with self.subTest(method=method):
+                result = self.evaluate(message(method))[2]["result"]
+                self.assertEqual((result["ttlMs"], result["cacheScope"]), (0, "private"))
+        call = self.evaluate(message("tools/call", {"name":"get_own_state"}))[2]["result"]
+        self.assertNotIn("ttlMs", call)
+        self.assertNotIn("cacheScope", call)
 
     def test_modern_missing_metadata(self):
         req=message("tools/list")
@@ -116,14 +125,34 @@ class StdioTests(unittest.TestCase):
         init={"id":1,"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":LEGACY,"clientInfo":{"name":"test","version":"1"},"capabilities":{}}}
         old={"id":2,"jsonrpc":"2.0","method":"tools/list"}
         modern=message("server/discover")
-        lines=[json.dumps(v) for v in (init,old,modern)]
-        proc=subprocess.run([sys.executable,"-I",str(WIRE/"stdio.py")],input="\n".join(lines)+"\n",text=True,capture_output=True,env=env,timeout=5)
-        self.assertEqual(proc.returncode,0,proc.stderr)
-        results={reply["id"]:reply["result"] for reply in map(json.loads,proc.stdout.splitlines())}
-        self.assertEqual(results[1]["protocolVersion"],LEGACY)
-        self.assertNotIn("resultType",results[2])
-        self.assertIn("tools",results[2])
-        self.assertEqual(results[modern["id"]]["supportedVersions"],[VERSION,LEGACY])
+        def exchange(messages):
+            data = "".join(json.dumps(msg)+"\n" for msg in messages)
+            proc = subprocess.run([sys.executable, "-I", str(WIRE/"stdio.py")], input=data,
+                                  text=True, capture_output=True, env=env, timeout=5)
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            return {obj["id"]:obj for obj in map(json.loads, proc.stdout.splitlines())}
+
+        result = exchange([modern])[modern["id"]]["result"]
+        self.assertEqual(result["supportedVersions"], list(STDIO_VERSIONS))
+        self.assertEqual((result["ttlMs"], result["cacheScope"]), (0, "private"))
+        # A new client process and one real initialize negotiation for each revision.
+        for revision in LEGACY_VERSIONS:
+            with self.subTest(revision=revision):
+                replies = exchange((
+                    {**init, "params":{**init["params"], "protocolVersion":revision}},
+                    {"jsonrpc":"2.0","method":"notifications/initialized"},
+                    old,
+                    {"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_own_state"}},
+                    {"jsonrpc":"2.0","id":4,"method":"server/discover"},
+                ))
+                self.assertEqual(replies[1]["result"]["protocolVersion"], revision)
+                listed = replies[2]["result"]
+                self.assertTrue({"ttlMs","cacheScope","resultType"}.isdisjoint(listed))
+                tool = listed["tools"][0]
+                self.assertEqual("annotations" in tool, revision >= "2025-03-26")
+                self.assertEqual("outputSchema" in tool, revision >= "2025-06-18")
+                self.assertEqual("structuredContent" in replies[3]["result"], revision >= "2025-06-18")
+                self.assertEqual(replies[4]["error"]["code"], -32601)
 
 if __name__=="__main__":
     unittest.main()

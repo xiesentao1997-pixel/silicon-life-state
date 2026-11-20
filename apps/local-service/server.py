@@ -13,7 +13,7 @@ import time
 from collections import deque
 import uuid
 import webbrowser
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlsplit
@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "packages" / "mcp-server"))
 from model_chat import Chat
 from access import Access, AccessError
+from dashboard_session import browser_reply, browser_token, cookie_header
 from host_wizard import HostWizard
 from schemas import document
 from reconnect import bundle, endpoint_proof, existing_endpoint, publish_endpoint
@@ -135,6 +136,7 @@ class LocalServer(ThreadingHTTPServer):
 
     def __init__(self, port, store, access):
         self.store = store
+        store.reconcile_host_files()
         self.launch_key = os.urandom(32)
         self.invocations = InvocationBudget()
         self.chats = Chat(self)
@@ -291,7 +293,8 @@ class Handler(BaseHTTPRequestHandler):
             if origin != self.server.base_url:
                 raise AccessError(403, "MCP_ORIGIN_DENIED", "此入口仅接受本机 Agent。")
             token = self.bearer()
-            principal = store.authenticate_agent(token)
+            installation = token.startswith("slsi_")
+            principal = store.inspect_installation(token) if installation else store.authenticate_agent(token)
             if self.command != "POST":
                 self.reply(405, headers={"Allow": "POST"})
                 return
@@ -302,6 +305,8 @@ class Handler(BaseHTTPRequestHandler):
                     raise
                 self.reply(400, rpc_error(None, -32700, "Parse error"))
                 return
+            if installation and isinstance(obj,dict) and obj.get("method") not in {"tools/list","server/discover","initialize","ping","notifications/initialized"}:
+                raise AccessError(403,"INSTANCE_GRANT_REQUIRED","请通过宿主绑定对话后使用分身凭据调用工具。")
             if isinstance(obj, dict) and obj.get("method") == "tools/call":
                 retry = self.server.invocations.admit(principal["grant_id"])
                 if retry:
@@ -313,7 +318,7 @@ class Handler(BaseHTTPRequestHandler):
             status, headers, answer = handle_http(obj, self.headers, lambda name, args: store.tool(
                 token, name, args, expected_session=expected_session))
             if status == 200 and isinstance(obj, dict) and obj.get("method") == "tools/list":
-                self.server.host_wizard.discovery(principal["grant_id"], obj)
+                self.server.host_wizard.discovery(principal.get("installation_id") or principal["grant_id"], obj)
             self.reply(status, answer, headers=headers)
             return
         if not path.startswith("/api/"):
@@ -321,6 +326,19 @@ class Handler(BaseHTTPRequestHandler):
                 self.serve_file(path)
             else:
                 self.reply(405, headers={"Allow": "GET, HEAD"})
+            return
+        if path in {"/api/installations/bind","/api/installations/inspect"} and self.command == "POST":
+            if origin != self.server.base_url or self.header("Origin"):
+                raise AccessError(403,"HOST_REQUIRED","请使用本机受信任的宿主适配器。")
+            token, body = self.bearer(), self.payload()
+            if not isinstance(body,dict):
+                raise AccessError(400,"INVALID_INPUT","请求应为 JSON 对象。")
+            if path.endswith("/inspect"):
+                require_keys(body,set())
+                result = store.inspect_installation(token)
+            else:
+                result = store.bind_installation(token,body)
+            self.reply(200,result)
             return
         if path == "/api/health" and self.command == "GET":
             health = {"ok": True, "version": VERSION, "local_only": True}
@@ -331,6 +349,33 @@ class Handler(BaseHTTPRequestHandler):
                 health["reconnect_proof"] = endpoint_proof(self.server.launch_key, self.server.server_port, challenge)
             self.reply(200, health)
             return
+        if path == "/api/extension/uninstalled" and self.command == "POST":
+            if self.header("Origin") != self.server.base_url:
+                raise AccessError(403, "DASHBOARD_REQUIRED", "请打开本机扩展注销页面。")
+            body = self.payload()
+            if not isinstance(body, dict) or set(body) != {"ticket"}:
+                raise AccessError(400, "INVALID_TICKET", "扩展注销需要有效标识。")
+            with self.server.mutations:
+                result = access.uninstall_extension(body["ticket"])
+            self.reply(200, result)
+            return
+        if path in {"/api/browser/pair", "/api/browser/upgrade"} and self.command == "POST":
+            if self.header("Origin") != self.server.base_url or origin != self.server.base_url:
+                raise AccessError(403, "DASHBOARD_REQUIRED", "请从本机仪表盘配对。")
+            body = self.payload()
+            if not isinstance(body, dict):
+                raise AccessError(400, "INVALID_INPUT", "配对需要 JSON 对象。")
+            with self.server.mutations:
+                if path.endswith("/upgrade"):
+                    require_keys(body, set())
+                    old = self.bearer()
+                    token = access.rotate(old, origin)
+                    self.server.chats.invalidate(owner=old)
+                else:
+                    require_keys(body, {"code"})
+                    token = access.exchange(body.get("code"), origin)["token"]
+            browser_reply(self, token)
+            return
         if path == "/api/pair" and self.command == "POST":
             body = self.payload()
             if not isinstance(body, dict):
@@ -339,13 +384,28 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(200, access.exchange(body.get("code"), origin))
             return
 
-        token = self.bearer()
+        dashboard = bool(self.header("X-SLS-Dashboard"))
+        token = browser_token(self, origin) if dashboard else self.bearer()
         access.check(token, origin)
+        if dashboard and path == "/api/browser/session" and self.command == "GET":
+            browser_reply(self, token)
+            return
+        if path == "/api/pair/rotate" and self.command == "POST":
+            if self.payload() != {}:
+                raise AccessError(400, "INVALID_INPUT", "轮换无需参数。")
+            with self.server.mutations:
+                replacement = access.rotate(token, origin)
+                self.server.chats.invalidate(owner=token)
+            if dashboard:
+                browser_reply(self, replacement)
+            else:
+                self.reply(200, {"token": replacement})
+            return
         if self.command == "GET":
             query = parse_qs(url.query, max_num_fields=8)
             paths = {"/api/snapshot": "snapshot", "/api/export": "export",
                      "/api/backups": "list_backups", "/api/integrity": "verify",
-                     "/api/credentials": "list_agents", "/api/subjects": "list_subjects"}
+                     "/api/installations": "list_installations", "/api/credentials": "list_agents", "/api/subjects": "list_subjects"}
             if path == "/api/schema":
                 self.reply(200, document())
                 return
@@ -373,7 +433,8 @@ class Handler(BaseHTTPRequestHandler):
             # A pairing may have been revoked between the initial check and taking the lock.
             access.check(token, origin)
             result = self.mutate(path, body, token, origin)
-        self.reply(200, result)
+        headers = {"Set-Cookie": cookie_header(self.server.server_port, "", 0)} if dashboard and path == "/api/logout" else None
+        self.reply(200, result, headers=headers)
 
     def mutate(self, path, body, token, origin):
         store, access = self.server.store, self.server.access
@@ -434,7 +495,12 @@ class Handler(BaseHTTPRequestHandler):
             if scope == "all":
                 access.reset(token)
             return result
-        actions = {"/api/subjects": "create_subject", "/api/instances": "create_instance",
+        if path.startswith("/api/installations") and origin != self.server.base_url:
+            raise AccessError(403,"DASHBOARD_REQUIRED","请从已配对的本机仪表盘管理安装授权。")
+        actions = {"/api/installations": "issue_installation",
+                   "/api/installations/revoke": "revoke_installation", "/api/installations/rotate": "rotate_installation",
+                   "/api/installations/restore": "restore_installation", "/api/subjects/rename": "rename_subject",
+                   "/api/instances/rename": "rename_instance", "/api/subjects": "create_subject", "/api/instances": "create_instance",
                    "/api/credentials": "issue_agent", "/api/credentials/revoke": "revoke_agent",
                    "/api/level": "set_level", "/api/backup": "backup", "/api/restore": "restore"}
         if path not in actions:
@@ -478,6 +544,7 @@ def parser():
     p.add_argument("--no-browser", action="store_true", help="do not open the dashboard automatically")
     p.add_argument("--json-ready", action="store_true", help="print machine-readable startup/pairing information")
     group = p.add_mutually_exclusive_group()
+    group.add_argument("--resume-service", action="store_true", help="serve the existing ledger without opening windows or issuing pairing codes")
     group.add_argument("--reconnect", action="store_true", help="open a fresh authenticated pairing dashboard on this installation")
     group.add_argument("--unpair-all", action="store_true", help="invalidate all owner dashboard/extension sessions and unused pairing codes")
     group.add_argument("--pair", action="store_true", help="issue a new 10-minute pairing code for a running service")
@@ -492,7 +559,7 @@ def show_connection(args, info, data_dir, already_running):
         print(json.dumps({**info, "version": VERSION, "existing_service": already_running}), flush=True)
     else:
         status = "已连接运行中的本地服务。" if already_running else "请保留此窗口。按 Ctrl+C 退出服务。"
-        print(f"\n硅基生命状态  {VERSION}\n作者：岑衡川·沈回音·匹夫\n\n本机仪表盘\n{info['dashboard_url']}"
+        print(f"\n硅基生命状态  {VERSION}\n作者：匹夫 · 岑衡川 · 沈回音\n\n本机仪表盘\n{info['dashboard_url']}"
               f"\n\n浏览器扩展配对码（10 分钟内有效，仅使用一次）\n{info['extension_code']}"
               f"\n到期时间（UTC）  {info['extension_expires_at']}"
               f"\n\n数据目录  {data_dir}\nMCP 地址  {info['base_url']}/mcp\n{status}\n", flush=True)
@@ -510,11 +577,16 @@ def main():
     if os.name != "nt":
         os.umask(0o077)
     data_dir = args.data_dir.expanduser().resolve()
-    data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-    if args.reconnect:
+    if args.resume_service:
+        if not data_dir.is_dir():
+            raise ValueError("Existing data directory is unavailable.")
+    else:
+        data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    maintenance = args.unpair_all or args.pair or args.list_backups or args.recover
+    if not (maintenance or args.resume_service):
         base = existing_endpoint(data_dir)
         if base:
-            show_connection(args, bundle(Access(data_dir), base, reconnect=True), data_dir, True)
+            show_connection(args, bundle(Access(data_dir), base, reconnect=args.reconnect), data_dir, True)
             return 0
     if args.unpair_all:
         print(json.dumps(Access(data_dir).unpair_all()))
@@ -528,6 +600,15 @@ def main():
         print(json.dumps(Store(data_dir).admin("list_backups", {}), ensure_ascii=False, indent=2))
         return 0
     with exclusive_service(data_dir):
+        if args.resume_service:
+            # Validate the existing ledger under the service lifetime lock. A missing,
+            # empty or unrelated SQLite file must never be initialized by a host launch.
+            if not (data_dir/"issuance.key").is_file():
+                raise ValueError("Existing installation key is unavailable.")
+            ledger = (data_dir/"state.sqlite3").as_uri() + "?mode=rw"
+            with closing(sqlite3.connect(ledger,uri=True)) as db:
+                if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='events'").fetchone():
+                    raise ValueError("Existing ledger is missing its events table.")
         store = Store(data_dir)
         if args.recover:
             result = store.admin("restore", {"backup_id": args.recover, "idempotency_key": fresh_key()})
@@ -535,8 +616,9 @@ def main():
             return 0
         access = Access(data_dir)
         with LocalServer(args.port, store, access) as server, publish_endpoint(data_dir, server):
-            info = bundle(access, server.base_url, reconnect=args.reconnect)
-            show_connection(args, info, data_dir, False)
+            if not args.resume_service:
+                info = bundle(access, server.base_url, reconnect=args.reconnect)
+                show_connection(args, info, data_dir, False)
             try:
                 server.serve_forever()
             except KeyboardInterrupt:

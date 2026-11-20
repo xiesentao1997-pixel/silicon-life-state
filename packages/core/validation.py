@@ -88,6 +88,7 @@ META = {'adapter_version','model_version'}
 TOOLS = {
     'register_subject': ({'name'},{'name'}),
     'register_instance': ({'name'},{'name'}),
+    'rename_instance': ({'name'},{'name'}),
     'start_session': (set(),set()),
     'report_state': (REPORT | META, set()),
     'revise_state': ((REPORT - {'shared_to_subject'}) | META | {'event_id','reason','operation','assessment','expected_version_id'},{'event_id'}),
@@ -105,6 +106,13 @@ TOOLS = {
 ADMIN = {
     'list_subjects': (set(),set()), 'list_agents': (set(),set()), 'snapshot': ({'subject_id'},set()), 'export': (set(),set()), 'verify': (set(),set()),
     'create_subject': ({'name'},{'name'}), 'create_instance': ({'subject_id','name'},{'subject_id','name'}),
+    'rename_subject': ({'subject_id','name'},{'subject_id','name'}),
+    'rename_instance': ({'instance_id','name'},{'instance_id','name'}),
+    'list_installations': (set(),set()),
+    'issue_installation': ({'host','subject_id','instance_id'},{'host','subject_id'}),
+    'revoke_installation': ({'installation_id'},{'installation_id'}),
+    'rotate_installation': ({'installation_id'},{'installation_id'}),
+    'restore_installation': ({'installation_id'},{'installation_id'}),
     'connection_grant': ({'instance_id'},{'instance_id'}),
     'issue_agent': ({'subject_id','instance_id'},set()), 'revoke_agent': ({'grant_id'},{'grant_id'}),
     'set_level': ({'subject_id','level'},{'subject_id','level'}),
@@ -119,7 +127,7 @@ ADMIN = {
     'delete_all': (set(),set()),
 }
 READS = {'get_own_state','read_subject_memory','get_request_status','read_event_history',
-         'snapshot','verify','export','list_backups','list_agents','list_subjects'}
+         'snapshot','verify','export','list_backups','list_agents','list_subjects','list_installations'}
 
 
 def validate(name, args, owner=False):
@@ -160,7 +168,7 @@ def validate(name, args, owner=False):
             choice(val,key,{'PRESENTED','ACCEPTED','DECLINED','DEFERRED','EXECUTED','NOT_EXECUTED','FOLLOW_UP'})
         elif key=='idempotency_key':
             string(val,key,128,8)
-        elif key in {'model_version','adapter_version','name','adapter','interaction_reference'} or key.endswith('_id'):
+        elif key in {'model_version','adapter_version','name','host','adapter','interaction_reference'} or key.endswith('_id'):
             string(val,key,256)
         else:
             string(val,key)

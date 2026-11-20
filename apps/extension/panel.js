@@ -1,4 +1,4 @@
-import {SITE, bindingKey, localApi, launchDashboard, openPairingDashboard, key, portNumber, sourceName, stageName, textOf} from './api.js';
+import {SITE, bindingKey, localApi, launchDashboard, openPairingDashboard, observedBinding, clearObservationBindings, pageIdentity, key, portNumber, sourceName, stageName, textOf} from './api.js';
 
 const $ = id => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -186,9 +186,10 @@ async function refresh() {
       $('pair-card').hidden = false; status('等待配对'); return;
     }
     const [tab,snapshot,prefs] = await Promise.all([currentTab(),localApi('snapshot'),localApi('settings')]);
-    const bindings = await chrome.storage.session.get(bindingKey(tab.id));
+    const selectedBinding = await observedBinding(tab);
     if (seq !== serial) return;
-    tabId = tab.id; binding = bindings[bindingKey(tabId)]; data = snapshot; observationEnabled = prefs.observation_enabled;
+    if (selectedBinding?.instance_id !== binding?.instance_id) { cancelPreview(); lastTab = undefined; }
+    tabId = tab.id; binding = selectedBinding; data = snapshot; observationEnabled = prefs.observation_enabled;
     $('connected').hidden = false; $('pair-card').hidden = true;
     status('本地已连接',true);
     render(tab);
@@ -197,7 +198,7 @@ async function refresh() {
   } catch (error) {
     if (seq !== serial) return;
     if (error.status === 401 || error.status === 403) {
-      await chrome.storage.local.remove('token'); await chrome.storage.session.clear();
+      await chrome.storage.local.remove('token'); await clearObservationBindings();
       forgetDisplay(); $('pair-card').hidden = false; notice('配对已失效，请使用新的插件配对码。'); status('等待配对');
     } else {
       status('连接中断'); notice(error.message);
@@ -249,12 +250,18 @@ click('bind',async () => {
   if (!result?.ok) throw new Error(result?.error || '窗口绑定未完成。');
   lastTab = undefined; cancelPreview(); notice('已绑定当前标签页。');
 });
-click('unbind',async () => {await chrome.storage.session.remove(bindingKey(tabId)); lastTab = undefined; cancelPreview(); notice('已解除绑定。');});
+click('unbind',async () => {
+  const result = await chrome.runtime.sendMessage({action:'unbind-tab',tabId});
+  if (!result?.ok) throw new Error(result?.error || '解除绑定失败。');
+  lastTab = undefined;
+  cancelPreview();
+  notice('已解除绑定。');
+});
 click('open-dashboard',() => launchDashboard(binding));
 click('open-mini',() => chrome.windows.create({url:chrome.runtime.getURL('panel.html?mode=mini&tab=' + tabId),type:'popup',width:375,height:350}));
 click('grant',async () => {
   const allowed = await chrome.permissions.request({origins:[SITE[$('site').value].origin + '/*']});
-  notice(allowed ? '已获得所选站点权限。' : '未授予站点权限。');
+  notice(allowed ? '已获得所选站点权限，请为当前对话确认分身绑定。' : '未授予站点权限。');
 });
 click('revoke',async () => {
   await chrome.permissions.remove({origins:[SITE[$('site').value].origin + '/*']});
@@ -264,13 +271,16 @@ click('preview',async () => {
   cancelPreview();
   const tab = await currentTab();
   const spec = SITE[$('site').value];
-  if (!binding || !observationEnabled || tab.id !== tabId) throw new Error('先绑定当前标签页并开启网页观察。');
+  const active = await observedBinding(tab);
+  if (!binding || !observationEnabled || tab.id !== tabId || active?.instance_id !== binding.instance_id) {
+    throw new Error('请先为当前对话确认分身并开启网页观察。');
+  }
   if (!tab.url || new URL(tab.url).origin !== spec.origin) throw new Error('请在所选站点的聊天标签页使用侧栏。');
   const target = {tabId:tab.id,frameIds:[0]};
   const results = await chrome.scripting.executeScript({target,world:'ISOLATED',files:['adapters/' + $('site').value + '.js','adapters/read.js']});
   const captured = results[0]?.result;
   if (!captured?.text) throw new Error(captured?.error || '当前页面没有可识别的 AI 原文。');
-  preview = {tabId:tab.id,documentId:results[0].documentId,instance_id:binding.instance_id,origin:spec.origin,
+  preview = {tabId:tab.id,page:(await pageIdentity(tab)).page,documentId:results[0].documentId,instance_id:binding.instance_id,origin:spec.origin,
     text:captured.text,adapter:captured.adapter,idempotency_key:key()};
   $('preview-text').textContent = preview.text;
   $('preview-pane').hidden = false;
@@ -280,8 +290,8 @@ click('save-observation',async () => {
   const copy = preview;
   if (!copy) return;
   const [tab,prefs] = await Promise.all([currentTab(), localApi('settings')]);
-  const active = (await chrome.storage.session.get(bindingKey(tab.id)))[bindingKey(tab.id)];
-  if (tab.id !== copy.tabId || active?.instance_id !== copy.instance_id || !prefs.observation_enabled ||
+  const active = await observedBinding(tab);
+  if (tab.id !== copy.tabId || (await pageIdentity(tab)).page !== copy.page || active?.instance_id !== copy.instance_id || !prefs.observation_enabled ||
       !tab.url || new URL(tab.url).origin !== copy.origin ||
       !(await chrome.permissions.contains({origins:[copy.origin + '/*']}))) {
     cancelPreview(); throw new Error('窗口、绑定或观察授权已变化，请重新预览。');
@@ -304,18 +314,24 @@ click('notifications',async () => {
   if (notificationsGranted) await chrome.permissions.remove({permissions:['notifications']});
   else await chrome.permissions.request({permissions:['notifications']});
 });
+click('rotate',async () => {
+  const {token} = await localApi('pair/rotate', {body:{}});
+  await chrome.storage.local.set({token});
+  notice('扩展凭据已轮换。');
+});
 click('disconnect',async () => {
-  let revoked = false;
-  try { await localApi('logout', {body:{idempotency_key:key()}}); revoked = true; } catch {}
-  await chrome.storage.local.remove('token'); await chrome.storage.session.clear();
-  forgetDisplay(); notice(revoked ? '配对已撤销。' : '本机配对已清除。离线时，服务端凭据会在期限届满时失效。');
+  await localApi('logout', {body:{idempotency_key:key()}});
+  await chrome.storage.local.remove('token');
+  await clearObservationBindings();
+  forgetDisplay();
+  notice('扩展配对已撤销。');
 });
 chrome.tabs.onActivated.addListener(() => {if (pinned === null) {cancelPreview();refresh();}});
 chrome.tabs.onUpdated.addListener((id,change) => {
-  if (id === tabId && (change.status === 'loading' || change.url)) cancelPreview();
+  if (id === tabId && (change.status === 'loading' || change.url)) {cancelPreview(); refresh();}
 });
 chrome.storage.onChanged.addListener((changes,area) => {
-  if ((area === 'session' && changes[bindingKey(tabId)]) || (area === 'local' && changes.token)) refresh();
+  if ((area === 'session' && changes[bindingKey(tabId)]) || (area === 'local' && (changes.token || Object.keys(changes).some(k => k.startsWith('conversation:'))))) refresh();
 });
 document.addEventListener('visibilitychange', () => {if (!document.hidden) refresh();});
 setInterval(() => {if (!document.hidden) refresh();},4000);

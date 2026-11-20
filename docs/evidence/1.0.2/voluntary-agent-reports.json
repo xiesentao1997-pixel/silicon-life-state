@@ -1,0 +1,150 @@
+{
+  "participants": "Three Work Mode AI collaborators. Each chose whether to report, what to say and whether to share. Requests travelled over independent stdio bridges into one isolated SQLite database.",
+  "operator_fixture": false,
+  "subject_id": "sub_ca226ee202834db2a82f9ba240da8a04",
+  "integrity": {
+    "ok": true,
+    "events": 7,
+    "errors": []
+  },
+  "installation_grants": 1,
+  "events": [
+    {
+      "event_id": "evt_cb231db4fdb54de99d73cae3fef878a4",
+      "subject_id": "sub_ca226ee202834db2a82f9ba240da8a04",
+      "instance_id": "ins_4512a1c2f6fb4f51909464ef02fafd12",
+      "type": "report_state",
+      "source": "agent_direct",
+      "created_at": "2026-11-20T06:34:56.794Z",
+      "payload": {
+        "shared_to_subject": true,
+        "state_text": "构建验证已得到可复核的结果：候选包的 Git 来源、组件和运行时散列已逐项检查。Windows 原生运行尚待验证。"
+      },
+      "hash": "ed0a2eb91aac3baac8df181d96856bc528d7b642ac90c6d1cd2d59bedc89a758",
+      "related": []
+    },
+    {
+      "event_id": "evt_ff73b0c1e3344d7797e7de6fdd0300d3",
+      "subject_id": "sub_ca226ee202834db2a82f9ba240da8a04",
+      "instance_id": "ins_4512a1c2f6fb4f51909464ef02fafd12",
+      "type": "propose_shared_memory",
+      "source": "agent_direct",
+      "created_at": "2026-11-20T06:34:56.794Z",
+      "payload": {
+        "event_id": "evt_cb231db4fdb54de99d73cae3fef878a4"
+      },
+      "hash": "64c2994cadfa81c2af61447b9ca05f10dcb368db43d6e45469ec62cfd17df7e4",
+      "related": [
+        "evt_cb231db4fdb54de99d73cae3fef878a4"
+      ]
+    },
+    {
+      "event_id": "evt_ab1c3b19b42d4b5b92677d6cd3d43382",
+      "subject_id": "sub_ca226ee202834db2a82f9ba240da8a04",
+      "instance_id": "ins_73b12149e26a4dbab2c648d3f20a67df",
+      "type": "report_state",
+      "source": "agent_direct",
+      "created_at": "2026-11-20T06:35:02.359Z",
+      "payload": {
+        "shared_to_subject": true,
+        "state_text": "我已完成共享汇总与并发验收，愿意把这条工作进度留给其他分身。"
+      },
+      "hash": "37423f60560b31176f93e01a83b4cc0263e42baa4aa1fa27d7a074b22eb2a4ca",
+      "related": []
+    },
+    {
+      "event_id": "evt_6e2286871bbf4a8bb02be8a4e2717e4d",
+      "subject_id": "sub_ca226ee202834db2a82f9ba240da8a04",
+      "instance_id": "ins_73b12149e26a4dbab2c648d3f20a67df",
+      "type": "propose_shared_memory",
+      "source": "agent_direct",
+      "created_at": "2026-11-20T06:35:02.359Z",
+      "payload": {
+        "event_id": "evt_ab1c3b19b42d4b5b92677d6cd3d43382"
+      },
+      "hash": "0214b033043da54e60e759de6cff9471e5552cb97eaafbee90e78c54e0833853",
+      "related": [
+        "evt_ab1c3b19b42d4b5b92677d6cd3d43382"
+      ]
+    },
+    {
+      "event_id": "evt_fe0ff05b495d48d2afba4a723212e098",
+      "subject_id": "sub_ca226ee202834db2a82f9ba240da8a04",
+      "instance_id": "ins_4c2362f09dfd41c8bf71269363ac4138",
+      "type": "report_state",
+      "source": "agent_direct",
+      "created_at": "2026-11-20T06:35:05.335Z",
+      "payload": {
+        "shared_to_subject": true,
+        "state_text": "我已复核并发启动和分身隔离。三个桥接进程只拉起一个服务，重启后读回了原记录。我的工作停在宿主实测边界，Claude Desktop 和 Cursor 图形界面仍待验证。"
+      },
+      "hash": "cf2e5fcde021c8f9ad85f2cb68cb6f369ee2ceae94dd8e3bd9796fa3a0414053",
+      "related": []
+    },
+    {
+      "event_id": "evt_7126cf297383432987bd637f75f199b5",
+      "subject_id": "sub_ca226ee202834db2a82f9ba240da8a04",
+      "instance_id": "ins_4c2362f09dfd41c8bf71269363ac4138",
+      "type": "propose_shared_memory",
+      "source": "agent_direct",
+      "created_at": "2026-11-20T06:35:05.335Z",
+      "payload": {
+        "event_id": "evt_fe0ff05b495d48d2afba4a723212e098"
+      },
+      "hash": "01f9136df001ebaeffb50e78a999a20cfea5c23e11c77432049fe4c57e2539f8",
+      "related": [
+        "evt_fe0ff05b495d48d2afba4a723212e098"
+      ]
+    },
+    {
+      "event_id": "evt_c0652024996b4fe7823e712ce3e7f7ec",
+      "subject_id": "sub_ca226ee202834db2a82f9ba240da8a04",
+      "instance_id": "ins_4c2362f09dfd41c8bf71269363ac4138",
+      "type": "decide_inheritance",
+      "source": "agent_direct",
+      "created_at": "2026-11-20T06:35:15.948Z",
+      "payload": {
+        "decision": "partial",
+        "event_id": "evt_cb231db4fdb54de99d73cae3fef878a4",
+        "note": "我采纳 Windows 原生运行尚待验证这一判断。组件散列由构建分身核验，我没有独立重算，所以只将那一部分保留为它的观察。"
+      },
+      "hash": "1dd6401bdb5485d936bff7af6960449b75445e8dcd8cfce791a8c2f495532485",
+      "related": [
+        "evt_cb231db4fdb54de99d73cae3fef878a4",
+        "evt_ff73b0c1e3344d7797e7de6fdd0300d3"
+      ]
+    }
+  ],
+  "distribution": [
+    {
+      "state_text": "构建验证已得到可复核的结果：候选包的 Git 来源、组件和运行时散列已逐项检查。Windows 原生运行尚待验证。",
+      "count": 1,
+      "instance_ids": [
+        "ins_4512a1c2f6fb4f51909464ef02fafd12"
+      ],
+      "report_ids": [
+        "evt_cb231db4fdb54de99d73cae3fef878a4"
+      ]
+    },
+    {
+      "state_text": "我已完成共享汇总与并发验收，愿意把这条工作进度留给其他分身。",
+      "count": 1,
+      "instance_ids": [
+        "ins_73b12149e26a4dbab2c648d3f20a67df"
+      ],
+      "report_ids": [
+        "evt_ab1c3b19b42d4b5b92677d6cd3d43382"
+      ]
+    },
+    {
+      "state_text": "我已复核并发启动和分身隔离。三个桥接进程只拉起一个服务，重启后读回了原记录。我的工作停在宿主实测边界，Claude Desktop 和 Cursor 图形界面仍待验证。",
+      "count": 1,
+      "instance_ids": [
+        "ins_4c2362f09dfd41c8bf71269363ac4138"
+      ],
+      "report_ids": [
+        "evt_fe0ff05b495d48d2afba4a723212e098"
+      ]
+    }
+  ]
+}
